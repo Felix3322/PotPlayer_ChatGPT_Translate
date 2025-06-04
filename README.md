@@ -129,6 +129,7 @@ Click below to watch the tutorial on Bilibili:
    - During installation you can preconfigure your API key and choose a model. These values become the default settings inside PotPlayer.
    - The optional `installer_qt.py` script provides a PyQt6 interface that skips configuration if an existing installation is detected and offers a **Skip** button.
 
+
 ### Manual Installation 🔧
 
 1. **Download the ZIP File:**  
