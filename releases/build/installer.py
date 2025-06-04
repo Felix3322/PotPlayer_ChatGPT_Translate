@@ -9,6 +9,9 @@ from tkinter import filedialog, messagebox, simpledialog
 import webbrowser
 import winreg
 import hashlib
+import urllib.request
+import json
+import re
 
 PLUGIN_VERSION = "1.5.2"
 
@@ -96,6 +99,40 @@ OFFLINE_FILES = {
         ("SubtitleTranslate - ChatGPT - Without Context.as", "SubtitleTranslate - ChatGPT - Without Context.as"),
         ("SubtitleTranslate - ChatGPT - Without Context.ico", "SubtitleTranslate - ChatGPT - Without Context.ico")
     ]
+}
+
+# Common models list used for quick configuration
+COMMON_MODELS = {
+    "OpenAI GPT-4.1-nano": {
+        "model": "gpt-4.1-nano",
+        "base": "https://api.openai.com/v1/chat/completions",
+        "recharge": "https://platform.openai.com/account/billing"
+    },
+    "Deepseek": {
+        "model": "deepseek-chat",
+        "base": "https://api.deepseek.com/v1/chat/completions",
+        "recharge": "https://deepseek.com/pricing"
+    },
+    "Tongyi Qianwen": {
+        "model": "qwen-plus",
+        "base": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+        "recharge": "https://dashscope.console.aliyun.com/"
+    },
+    "SiliconFlow": {
+        "model": "siliconflow-chat",
+        "base": "https://api.siliconflow.cn/v1/chat/completions",
+        "recharge": "https://siliconflow.cn/#/dashboard"
+    },
+    "ERNIE Bot": {
+        "model": "ernie-4.0-turbo-8k",
+        "base": "https://qianfan.baidubce.com/v2/chat/completions",
+        "recharge": "https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application"
+    },
+    "Gemini": {
+        "model": "gemini-2.0-flash",
+        "base": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "recharge": "https://ai.google.dev/"
+    }
 }
 
 # ========= 工具函数 =========
@@ -225,6 +262,18 @@ def generate_uninstaller(uninstall_bat_path, files_to_delete, reg_key_name):
         f.write(f'reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{reg_key_name}" /f\n')
         f.write("\nexit\n")
 
+def apply_preconfig(file_path, api_key, model, api_base):
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = f.read()
+        data = re.sub(r'pre_api_key\s*=\s*".*?"', f'pre_api_key = "{api_key}"', data)
+        data = re.sub(r'pre_selected_model\s*=\s*".*?"', f'pre_selected_model = "{model}"', data)
+        data = re.sub(r'pre_apiUrl\s*=\s*".*?"', f'pre_apiUrl = "{api_base}"', data)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(data)
+    except Exception as e:
+        print(f"Failed to write config: {e}")
+
 # ========= 自定义三按钮弹窗 =========
 def custom_file_exists_dialog(parent, title, msg, btn1, btn2, btn3):
     result = [None]
@@ -246,12 +295,15 @@ def custom_file_exists_dialog(parent, title, msg, btn1, btn2, btn3):
 
 # ========= 安装线程 =========
 class InstallThread(threading.Thread):
-    def __init__(self, parent, install_dir, version, script_dir, callback):
+    def __init__(self, parent, install_dir, version, script_dir, api_key, model, api_base, callback):
         super().__init__()
         self.parent = parent
         self.install_dir = install_dir
         self.version = version  # "with_context"/"without_context"
         self.script_dir = script_dir
+        self.api_key = api_key
+        self.model = model
+        self.api_base = api_base
         self.callback = callback
         self.files_installed = []
 
@@ -285,6 +337,7 @@ class InstallThread(threading.Thread):
                         return
                     elif choice == "overwrite":
                         shutil.copy(src_path, dest_path)
+                        apply_preconfig(dest_path, self.api_key, self.model, self.api_base)
                         self.callback(f"Installed {dest_name} (Overwritten).")
                         self.files_installed.append(dest_path)
                         # 判断是否已有注册表（有则升级，无则询问新建）
@@ -313,6 +366,7 @@ class InstallThread(threading.Thread):
                                 messagebox.showerror("Error", s["file_exists_3choice"].format(new_name))
                                 continue
                             shutil.copy(src_path, new_dest_path)
+                            apply_preconfig(new_dest_path, self.api_key, self.model, self.api_base)
                             self.callback(f"Installed {new_name}.")
                             self.files_installed.append(new_dest_path)
                             # 重命名的安装通常没有注册表，问是否写入注册表
@@ -321,6 +375,7 @@ class InstallThread(threading.Thread):
                             break
                 else:
                     shutil.copy(src_path, dest_path)
+                    apply_preconfig(dest_path, self.api_key, self.model, self.api_base)
                     self.callback(f"Installed {dest_name}.")
                     self.files_installed.append(dest_path)
                     # 纯新增问是否写注册表（未装/新文件）
@@ -357,12 +412,15 @@ class InstallerApp(tk.Tk):
         self.strings = LANGUAGE_STRINGS[self.language]
         self.install_dir = ""
         self.version = ""
+        self.api_key = ""
+        self.model = COMMON_MODELS["OpenAI GPT-4.1-nano"]["model"]
+        self.api_base = COMMON_MODELS["OpenAI GPT-4.1-nano"]["base"]
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.title("PotPlayer ChatGPT Translate Installer")
         self.geometry("500x450")
         self.resizable(False, False)
         self.frames = {}
-        for F in (LanguageFrame, WelcomeFrame, LicenseFrame, DirectoryFrame, VersionFrame, ProgressFrame, FinishFrame):
+        for F in (LanguageFrame, WelcomeFrame, LicenseFrame, DirectoryFrame, VersionFrame, ConfigFrame, ProgressFrame, FinishFrame):
             page_name = F.__name__
             frame = F(parent=self, controller=self)
             self.frames[page_name] = frame
@@ -379,7 +437,16 @@ class InstallerApp(tk.Tk):
         self.frames["ProgressFrame"].append_text(msg)
 
     def start_installation(self):
-        thread = InstallThread(self, self.install_dir, self.version, self.script_dir, self.install_callback)
+        thread = InstallThread(
+            self,
+            self.install_dir,
+            self.version,
+            self.script_dir,
+            self.api_key,
+            self.model,
+            self.api_base,
+            self.install_callback,
+        )
         thread.start()
 
     def install_callback(self, msg):
@@ -525,6 +592,77 @@ class VersionFrame(tk.Frame):
 
     def next_step(self):
         self.controller.version = self.version_var.get()
+        self.controller.show_frame("ConfigFrame")
+
+class ConfigFrame(tk.Frame):
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        self.controller = controller
+        self.model_var = tk.StringVar(value=list(COMMON_MODELS.keys())[0])
+        self.api_var = tk.StringVar(value=COMMON_MODELS[list(COMMON_MODELS.keys())[0]]["base"])
+        self.key_var = tk.StringVar()
+        self.current_recharge = COMMON_MODELS[list(COMMON_MODELS.keys())[0]]["recharge"]
+
+        tk.Label(self, text="Select Model:").pack(pady=5)
+        self.model_menu = tk.OptionMenu(self, self.model_var, *COMMON_MODELS.keys(), command=self.model_changed)
+        self.model_menu.pack(pady=5)
+        tk.Label(self, text="API Base:").pack(pady=5)
+        self.api_entry = tk.Entry(self, textvariable=self.api_var, width=50)
+        self.api_entry.pack(pady=5)
+        tk.Button(self, text="Fetch Models", command=self.fetch_models).pack(pady=5)
+        tk.Label(self, text="API Key:").pack(pady=5)
+        self.key_entry = tk.Entry(self, textvariable=self.key_var, width=50, show="*")
+        self.key_entry.pack(pady=5)
+        tk.Button(self, text="Recharge", command=self.open_recharge).pack(pady=5)
+        frm = tk.Frame(self)
+        frm.pack(side="bottom", pady=20)
+        self.back_btn = tk.Button(frm, text="Back", width=10, command=lambda: controller.show_frame("VersionFrame"))
+        self.back_btn.pack(side="left", padx=10)
+        self.next_btn = tk.Button(frm, text="Next", width=10, command=self.next_step)
+        self.next_btn.pack(side="right", padx=10)
+
+    def model_changed(self, name):
+        info = COMMON_MODELS.get(name)
+        if info:
+            self.api_var.set(info["base"])
+            self.current_recharge = info["recharge"]
+            self.controller.model = info["model"]
+
+    def fetch_models(self):
+        base = self.api_var.get().strip()
+        if not base:
+            return
+        url = base
+        if "chat/completions" in base:
+            url = base.rsplit("chat/completions", 1)[0] + "models"
+        elif not base.endswith("/models"):
+            if not base.endswith("/"):
+                base += "/"
+            url = base + "models"
+        try:
+            with urllib.request.urlopen(url) as r:
+                data = json.load(r)
+            models = [d["id"] for d in data.get("data", []) if "id" in d]
+            if models:
+                menu = self.model_menu["menu"]
+                menu.delete(0, "end")
+                for m in models:
+                    menu.add_command(label=m, command=lambda val=m: self.model_var.set(val))
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to fetch models: {e}")
+
+    def open_recharge(self):
+        if self.current_recharge:
+            webbrowser.open(self.current_recharge)
+
+    def next_step(self):
+        self.controller.api_key = self.key_var.get().strip()
+        sel = self.model_var.get()
+        if sel in COMMON_MODELS:
+            self.controller.model = COMMON_MODELS[sel]["model"]
+        else:
+            self.controller.model = sel
+        self.controller.api_base = self.api_var.get().strip()
         self.controller.show_frame("ProgressFrame")
 
 class ProgressFrame(tk.Frame):

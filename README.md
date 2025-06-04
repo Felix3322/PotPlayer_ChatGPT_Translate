@@ -123,9 +123,11 @@ Click below to watch the tutorial on Bilibili:
 1. **Download the Installer:**  
    [Installer](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/releases/latest)  
    *(The installer is open source, so you can review the source code)*
-2. **Run the Installer:**  
-   - Double-click `installer.exe` to start the installation.  
+2. **Run the Installer:**
+   - Double-click `installer.exe` to start the installation.
    - The installer automatically detects your PotPlayer installation path and completes the setup.
+   - During installation you can preconfigure your API key and choose a model. These values become the default settings inside PotPlayer.
+   - The optional `installer_qt.py` script provides a PyQt6 interface that skips configuration if an existing installation is detected and offers a **Skip** button.
 
 ### Manual Installation 🔧
 
@@ -215,6 +217,7 @@ LLaMA: llama-13b|https://api.llama.ai/v1/chat/completions
 Code LLaMA: code-llama-34b|https://api.llama.ai/v1/code/completions
 Local Deployment (no API key): model-name|127.0.0.1:PORT|nullkey
 ```
+Model names in the installer are shown in your chosen language whenever possible.
 
 You can expand or replace these with any OpenAI-compatible model that supports the chat/completions endpoint.
 

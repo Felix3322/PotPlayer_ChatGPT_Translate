@@ -47,9 +47,14 @@ string GetPasswordText() {
 }
 
 // Global Variables
-string api_key = "";
-string selected_model = "gpt-4.1-nano"; // Default model
-string apiUrl = "https://api.openai.com/v1/chat/completions"; // Default API URL
+// Pre-configured values (auto-filled by installer)
+string pre_api_key = ""; // will be replaced during installation
+string pre_selected_model = "gpt-4.1-nano"; // will be replaced during installation
+string pre_apiUrl = "https://api.openai.com/v1/chat/completions"; // will be replaced during installation
+
+string api_key = pre_api_key;
+string selected_model = pre_selected_model; // Default model
+string apiUrl = pre_apiUrl; // Default API URL
 string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
 array<string> subtitleHistory;  // Global subtitle history
 
@@ -213,7 +218,7 @@ string ServerLogin(string User, string Pass) {
         while (apiUrlLocal != "" && apiUrlLocal.substr(apiUrlLocal.length()-1, 1) == "/")
             apiUrlLocal = apiUrlLocal.substr(0, apiUrlLocal.length()-1);
     } else {
-        apiUrlLocal = "https://api.openai.com/v1/chat/completions";
+        apiUrlLocal = pre_apiUrl;
     }
     if (!allowNullApiKey && Pass == "") {
         errorAccum += "API Key not configured. Please enter a valid API Key.\n";
@@ -330,8 +335,8 @@ string ServerLogin(string User, string Pass) {
 // Logout Interface to clear model name and API Key
 void ServerLogout() {
     api_key = "";
-    selected_model = "gpt-4.1-nano";
-    apiUrl = "https://api.openai.com/v1/chat/completions";
+    selected_model = pre_selected_model;
+    apiUrl = pre_apiUrl;
     HostSaveString("gpt_api_key", "");
     HostSaveString("gpt_selected_model", selected_model);
     HostSaveString("gpt_apiUrl", apiUrl);
@@ -371,9 +376,9 @@ int GetModelMaxTokens(const string &in modelName) {
 
 // Translation Function
 string Translate(string Text, string &in SrcLang, string &in DstLang) {
-    api_key = HostLoadString("gpt_api_key", "");
-    selected_model = HostLoadString("gpt_selected_model", "gpt-4.1-nano");
-    apiUrl = HostLoadString("gpt_apiUrl", "https://api.openai.com/v1/chat/completions");
+    api_key = HostLoadString("gpt_api_key", api_key);
+    selected_model = HostLoadString("gpt_selected_model", selected_model);
+    apiUrl = HostLoadString("gpt_apiUrl", apiUrl);
 
     if (api_key == "") {
         HostPrintUTF8("API Key not configured. Please enter it in the settings menu.\n");
@@ -474,9 +479,9 @@ string Translate(string Text, string &in SrcLang, string &in DstLang) {
 // Plugin Initialization
 void OnInitialize() {
     HostPrintUTF8("ChatGPT translation plugin loaded.\n");
-    api_key = HostLoadString("gpt_api_key", "");
-    selected_model = HostLoadString("gpt_selected_model", "gpt-4.1-nano");
-    apiUrl = HostLoadString("gpt_apiUrl", "https://api.openai.com/v1/chat/completions");
+    api_key = HostLoadString("gpt_api_key", api_key);
+    selected_model = HostLoadString("gpt_selected_model", selected_model);
+    apiUrl = HostLoadString("gpt_apiUrl", apiUrl);
     if (api_key != "") {
         HostPrintUTF8("Saved API Key, model name, and API URL loaded.\n");
     }
