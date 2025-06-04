@@ -7,7 +7,8 @@
 
 <div align="right">
   <a href="https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/docs/readme_zh.md">简体中文</a> | 
-  <a href="https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/readme.md">English</a>
+  <a href="https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/docs/readme_zh-tw.md">繁体中文</a> | 
+  <strong href="https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/README.md">English</strong>
 </div>
 
 <div align="center">
@@ -66,12 +67,12 @@ One key advantage of using ChatGPT for subtitle translation is its ability to un
 
 - **Google Translate Result:**  
   > *"你要老了我他妈的宇宙吗?"*  
-  ![](https://github.com/Felix3322/PotPlayer_Chatgpt_Translate/blob/master/docs/Google%20translate.png)  
+  ![](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/docs/Google%20translate.png)  
   _(Nonsensical and incorrect)_
 
 - **ChatGPT Translation Result:**  
   > *"你要像《老黄犬》一样对待我的宇宙?"*  
-  ![](https://github.com/Felix3322/PotPlayer_Chatgpt_Translate/blob/master/docs/ChatGPT.png)  
+  ![](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/docs/ChatGPT.png)  
   _(Correctly captures the reference and intended meaning)_
 
 ## 🧐 ChatGPT Without Context vs. ChatGPT With Context Comparison
@@ -81,12 +82,12 @@ One key advantage of using ChatGPT for subtitle translation is its ability to un
 
 - **ChatGPT Translation (Without Context):**  
   > *"但是，在现实生活中成为一个人甚至更好。"*  
-  ![](https://github.com/Felix3322/PotPlayer_Chatgpt_Translate/blob/master/docs/without%20context.png)  
+  ![](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/docs/without%20context.png)  
   _(Literal translation, failing to capture the implied meaning)_
 
 - **ChatGPT Translation (With Context):**  
   > *"但在现实生活中成为一个反派更好。"*  
-  ![](https://github.com/Felix3322/PotPlayer_Chatgpt_Translate/blob/master/docs/using%20context.png)  
+  ![](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/docs/using%20context.png)  
   _(Accurately capturing the intended context)_
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -120,11 +121,12 @@ Click below to watch the tutorial on Bilibili:
 ### Fully Automatic Installation (Recommended) ⚡
 
 1. **Download the Installer:**  
-   [Installer](https://github.com/Felix3322/PotPlayer_Chatgpt_Translate/releases/latest)  
+   [Installer](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/releases/latest)  
    *(The installer is open source, so you can review the source code)*
-2. **Run the Installer:**  
-   - Double-click `installer.exe` to start the installation.  
+2. **Run the Installer:**
+   - Double-click `installer.exe` to start the installation.
    - The installer automatically detects your PotPlayer installation path and completes the setup.
+   - During installation you can preconfigure your API key and choose a model. These values become the default settings inside PotPlayer.
 
 ### Manual Installation 🔧
 
@@ -163,7 +165,7 @@ Sure! Here's the updated **README** section, with your extended model API list i
      You can simply enter the model name, which will use the default API URL.  
      **Example:**  
      ```
-     gpt-4o-mini
+     gpt-4.1-nano
      ```  
      
      Alternatively, specify a custom API URL using the following format:  
@@ -172,17 +174,17 @@ Sure! Here's the updated **README** section, with your extended model API list i
      ```  
      **Example:**  
      ```
-     gpt-4o-mini|https://api.openai.com/v1/chat/completions
+     gpt-4.1-nano|https://api.openai.com/v1/chat/completions
      ```  
      
      > **Note:**  
      > In version **v1.5** and later, if you're using a self-hosted or third-party API that does not require an API key, you can add `nullkey` at the end:  
      > ```
-     > gpt-4o-mini|nullkey
+     > gpt-4.1-nano|nullkey
      > ```
      > or:  
      > ```
-     > qwen2.5:7b|https://127.0.0.1:11434/v1/chat/completions|nullkey
+     > qwen2.5:7b|http://127.0.0.1:11434/v1/chat/completions|nullkey
      > ```
 
    - **API Key:**  
@@ -212,8 +214,6 @@ Gemini: gemini-2.0-flash|https://generativelanguage.googleapis.com/v1beta/openai
 ChatGLM: chatglm-6b|https://api.chatglm.cn/v1/chat/completions
 LLaMA: llama-13b|https://api.llama.ai/v1/chat/completions
 Code LLaMA: code-llama-34b|https://api.llama.ai/v1/code/completions
-DeepSeek-V3: deepseek-v3|https://api.deepseek.com/v3/chat/completions
-DeepSeek-R1: deepseek-r1|https://api.deepseek.com/r1/chat/completions
 Local Deployment (no API key): model-name|127.0.0.1:PORT|nullkey
 ```
 
@@ -257,7 +257,7 @@ If you have suggestions for improvements or bug fixes, feel free to open an issu
 
 ## License 📄
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the GPLv3 License. See `LICENSE` for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -283,7 +283,7 @@ Personal website: [obanarchy.org](https://obanarchy.org)
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=felix3322/potplayer_chatgpt_translate&type=Date)](https://www.star-history.com/#felix3322/potplayer_chatgpt_translate&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=Felix3322/PotPlayer_ChatGPT_Translate&type=Date)](https://www.star-history.com/#Felix3322/PotPlayer_ChatGPT_Translate&Date)
 
 ---
 
