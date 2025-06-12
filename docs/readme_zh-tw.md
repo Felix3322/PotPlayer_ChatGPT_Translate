@@ -135,6 +135,12 @@
 
    * 雙擊 installer.exe 開始安裝。
    * 安裝程式會自動偵測你的 PotPlayer 路徑並完成設定。
+   * 進階使用者可啟用靜默模式：
+     ```bash
+     installer.exe --dir "C:\\Program Files\\DAUM\\PotPlayer\\Extension\\Subtitle\\Translate" \
+       --version with_context --lang zh --silent
+     ```
+     如此可在無需互動的情況下完成安裝。
 
 ### 手動安裝 🔧
 

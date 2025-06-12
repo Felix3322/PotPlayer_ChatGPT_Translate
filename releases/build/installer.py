@@ -3,6 +3,7 @@ import sys
 import ctypes
 import threading
 import shutil
+import argparse
 import win32com.client
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
@@ -97,6 +98,17 @@ OFFLINE_FILES = {
         ("SubtitleTranslate - ChatGPT - Without Context.ico", "SubtitleTranslate - ChatGPT - Without Context.ico")
     ]
 }
+
+# ====== CLI helper ======
+def cli_install(install_dir, version, lang="en"):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    ensure_dir_exists(install_dir)
+    for src_file, dest_name in OFFLINE_FILES.get(version, []):
+        src_path = os.path.join(script_dir, src_file)
+        dest_path = os.path.join(install_dir, dest_name)
+        shutil.copy(src_path, dest_path)
+        print(f"Installed {dest_name}")
+    print(LANGUAGE_STRINGS[lang]["installation_complete"])
 
 # ========= 工具函数 =========
 
@@ -568,9 +580,31 @@ class FinishFrame(tk.Frame):
         self.finish_btn.config(text=s["finish"])
 
 def main():
+    parser = argparse.ArgumentParser(description="PotPlayer ChatGPT Translate Installer")
+    parser.add_argument("--dir", help="PotPlayer Translate directory")
+    parser.add_argument("--version", choices=["with_context", "without_context"], help="Plugin variant")
+    parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Language")
+    parser.add_argument("--silent", action="store_true", help="Run in CLI mode")
+    args = parser.parse_args()
+
     if not is_admin():
         restart_as_admin()
+
+    if args.silent:
+        if not args.dir or not args.version:
+            print("--dir and --version are required for --silent mode")
+            return
+        cli_install(args.dir, args.version, args.lang)
+        return
+
     app = InstallerApp()
+    if args.lang:
+        app.language = args.lang
+        app.strings = LANGUAGE_STRINGS[args.lang]
+    if args.dir:
+        app.install_dir = args.dir
+    if args.version:
+        app.version = args.version
     app.mainloop()
 
 if __name__ == "__main__":

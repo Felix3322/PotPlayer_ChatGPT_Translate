@@ -123,9 +123,15 @@
 1. **下载安装程序：**  
    [安装程序](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/releases/latest)  
    *(安装程序是开源的，你可以查看其源码)*
-2. **运行安装程序：**  
-   - 双击 installer.exe 启动安装。  
+2. **运行安装程序：**
+   - 双击 installer.exe 启动安装。
    - 安装程序会自动检测你的 PotPlayer 安装路径并完成安装设置。
+   - 高级用户可使用静默模式：
+     ```bash
+     installer.exe --dir "C:\\Program Files\\DAUM\\PotPlayer\\Extension\\Subtitle\\Translate" \
+       --version with_context --lang zh --silent
+     ```
+     这样可以在无需交互的情况下完成安装。
 
 ### 手动安装 🔧
 

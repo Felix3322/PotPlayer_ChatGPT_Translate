@@ -123,9 +123,15 @@ Click below to watch the tutorial on Bilibili:
 1. **Download the Installer:**  
    [Installer](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/releases/latest)  
    *(The installer is open source, so you can review the source code)*
-2. **Run the Installer:**  
-   - Double-click `installer.exe` to start the installation.  
+2. **Run the Installer:**
+   - Double-click `installer.exe` to start the installation.
    - The installer automatically detects your PotPlayer installation path and completes the setup.
+   - For advanced users, the installer also supports a silent mode:
+     ```bash
+     installer.exe --dir "C:\\Program Files\\DAUM\\PotPlayer\\Extension\\Subtitle\\Translate" \
+       --version with_context --lang en --silent
+     ```
+     This installs the plugin without any prompts.
 
 ### Manual Installation 🔧
 
