@@ -230,7 +230,17 @@ Gemini: gemini-2.0-flash|https://generativelanguage.googleapis.com/v1beta/openai
 ChatGLM: chatglm-6b|https://api.chatglm.cn/v1/chat/completions
 LLaMA: llama-13b|https://api.llama.ai/v1/chat/completions
 Code LLaMA: code-llama-34b|https://api.llama.ai/v1/code/completions
-本地部署（無需 API Key）：模型名稱|127.0.0.1:端口|nullkey
+OpenAI GPT-4o: gpt-4o|https://api.openai.com/v1/chat/completions
+OpenAI GPT-4 Turbo: gpt-4-turbo|https://api.openai.com/v1/chat/completions
+OpenAI GPT-3.5 Turbo: gpt-3.5-turbo|https://api.openai.com/v1/chat/completions
+Claude 3 Sonnet: claude-3-sonnet-20240229|https://api.anthropic.com/v1/messages
+Mistral Large: mistral-large|https://api.mistral.ai/v1/chat/completions
+Groq Llama 3: llama3-70b-8192|https://api.groq.com/openai/v1/chat/completions
+Perplexity Sonar Large: pplx-70b-online|https://api.perplexity.ai/chat/completions
+Fireworks Mixtral: accounts/fireworks/models/mixtral-8x7b-instruct|https://api.fireworks.ai/inference/v1/chat/completions
+Moonshot v1: moonshot-v1-128k|https://api.moonshot.cn/v1/chat/completions
+Yi 34B Chat: yi-34b-chat|https://api.lingyi.ai/v1/chat/completions
+本地部署（無需 API Key）：模型名稱|http://127.0.0.1:端口/v1/chat/completions|nullkey
 ```
 
 你亦可根據需求擴充其他支援 OpenAI 介面的模型，僅需確保其支援 `chat/completions` 介面。
