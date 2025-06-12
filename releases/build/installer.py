@@ -3,7 +3,7 @@ import sys
 import ctypes
 import threading
 import shutil
-import argparse
+import requests
 import win32com.client
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
@@ -48,7 +48,15 @@ LANGUAGE_STRINGS = {
         "custom_name_empty": "Custom name cannot be empty. Installation cancelled.",
         "ask_reg_write": "Detected file exists but not registered for uninstall. Write uninstall info to registry for easier uninstallation?",
         "ask_reg_upgrade": "Detected registry info for this plugin, update registry entry for new version?",
-        "ask_reg_new": "No registry uninstall info found. Write uninstall info to registry for easier uninstallation?"
+        "ask_reg_new": "No registry uninstall info found. Write uninstall info to registry for easier uninstallation?",
+        "config_title": "Verify API Settings",
+        "config_model": "Model:",
+        "config_api": "API URL:",
+        "config_key": "API Key:",
+        "verify": "Verify",
+        "verifying": "Verifying...",
+        "verify_success": "Verification passed.",
+        "verify_fail": "Verification failed:\n{}"
     },
     "zh": {
         "admin_required": "此安装器需要以管理员权限运行，请以管理员身份重启。",
@@ -84,7 +92,15 @@ LANGUAGE_STRINGS = {
         "custom_name_empty": "文件名不能为空，安装已取消",
         "ask_reg_write": "检测到文件已存在但未注册卸载信息，是否写入注册表以便卸载？",
         "ask_reg_upgrade": "检测到已有卸载注册表项，是否更新为新版本？",
-        "ask_reg_new": "未发现卸载注册表项，是否写入注册表以便卸载？"
+        "ask_reg_new": "未发现卸载注册表项，是否写入注册表以便卸载？",
+        "config_title": "验证 API 设置",
+        "config_model": "模型名称:",
+        "config_api": "API 地址:",
+        "config_key": "API Key:",
+        "verify": "验证",
+        "verifying": "正在验证...",
+        "verify_success": "验证成功。",
+        "verify_fail": "验证失败:\n{}"
     }
 }
 
@@ -98,17 +114,6 @@ OFFLINE_FILES = {
         ("SubtitleTranslate - ChatGPT - Without Context.ico", "SubtitleTranslate - ChatGPT - Without Context.ico")
     ]
 }
-
-# ====== CLI helper ======
-def cli_install(install_dir, version, lang="en"):
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    ensure_dir_exists(install_dir)
-    for src_file, dest_name in OFFLINE_FILES.get(version, []):
-        src_path = os.path.join(script_dir, src_file)
-        dest_path = os.path.join(install_dir, dest_name)
-        shutil.copy(src_path, dest_path)
-        print(f"Installed {dest_name}")
-    print(LANGUAGE_STRINGS[lang]["installation_complete"])
 
 # ========= 工具函数 =========
 
@@ -193,6 +198,35 @@ def read_license():
 def ensure_dir_exists(path):
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
+
+def verify_api_settings(model, api_url, api_key):
+    api_url = api_url.strip().rstrip('/') or "https://api.openai.com/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    data = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": "You are a test assistant."},
+            {"role": "user", "content": "Hello"}
+        ],
+        "max_tokens": 1,
+        "temperature": 0
+    }
+    try:
+        r = requests.post(api_url, json=data, timeout=10, headers=headers)
+        if r.ok and r.json().get("choices"):
+            return True, ""
+        msg = r.json().get("error", {}).get("message", "Invalid response")
+    except Exception as e:
+        msg = str(e)
+    if "chat/completions" not in api_url:
+        corrected = api_url + "/chat/completions"
+        try:
+            r = requests.post(corrected, json=data, timeout=10, headers=headers)
+            if r.ok and r.json().get("choices"):
+                return True, f"Warning: Your API base was auto-corrected to: {corrected}"
+        except Exception:
+            pass
+    return False, msg
 
 def reg_key_name(install_dir, context_type):
     id_base = os.path.abspath(install_dir).lower() + "|" + context_type
@@ -374,7 +408,7 @@ class InstallerApp(tk.Tk):
         self.geometry("500x450")
         self.resizable(False, False)
         self.frames = {}
-        for F in (LanguageFrame, WelcomeFrame, LicenseFrame, DirectoryFrame, VersionFrame, ProgressFrame, FinishFrame):
+        for F in (LanguageFrame, WelcomeFrame, LicenseFrame, DirectoryFrame, VersionFrame, ConfigFrame, ProgressFrame, FinishFrame):
             page_name = F.__name__
             frame = F(parent=self, controller=self)
             self.frames[page_name] = frame
@@ -537,7 +571,72 @@ class VersionFrame(tk.Frame):
 
     def next_step(self):
         self.controller.version = self.version_var.get()
-        self.controller.show_frame("ProgressFrame")
+        self.controller.show_frame("ConfigFrame")
+
+class ConfigFrame(tk.Frame):
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        self.controller = controller
+        self.lbl = tk.Label(self, text="", font=("Arial", 12))
+        self.lbl.pack(pady=10)
+        frm = tk.Frame(self)
+        frm.pack(pady=5)
+        self.lbl_model = tk.Label(frm, text="")
+        self.lbl_model.grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        self.model_entry = tk.Entry(frm, width=40)
+        self.model_entry.grid(row=0, column=1, padx=5, pady=5)
+        self.lbl_api = tk.Label(frm, text="")
+        self.lbl_api.grid(row=1, column=0, sticky="e", padx=5, pady=5)
+        self.api_entry = tk.Entry(frm, width=40)
+        self.api_entry.grid(row=1, column=1, padx=5, pady=5)
+        self.lbl_key = tk.Label(frm, text="")
+        self.lbl_key.grid(row=2, column=0, sticky="e", padx=5, pady=5)
+        self.key_entry = tk.Entry(frm, width=40, show="*")
+        self.key_entry.grid(row=2, column=1, padx=5, pady=5)
+        self.status = tk.Label(self, text="", fg="red", wraplength=400)
+        self.status.pack(pady=5)
+        btnf = tk.Frame(self)
+        btnf.pack(side="bottom", pady=20)
+        self.back_btn = tk.Button(btnf, text="", width=10, command=lambda: controller.show_frame("VersionFrame"))
+        self.verify_btn = tk.Button(btnf, text="", width=10, command=self.verify)
+        self.next_btn = tk.Button(btnf, text="", width=10, command=self.next_step)
+        self.back_btn.pack(side="left", padx=5)
+        self.verify_btn.pack(side="left", padx=5)
+        self.next_btn.pack(side="right", padx=5)
+
+    def on_show(self):
+        s = self.controller.strings
+        self.lbl.config(text=s["config_title"])
+        self.lbl_model.config(text=s["config_model"])
+        self.lbl_api.config(text=s["config_api"])
+        self.lbl_key.config(text=s["config_key"])
+        self.back_btn.config(text=s["back"])
+        self.verify_btn.config(text=s["verify"])
+        self.next_btn.config(text=s["next"])
+        if not self.model_entry.get():
+            self.model_entry.insert(0, "gpt-4o")
+        if not self.api_entry.get():
+            self.api_entry.insert(0, "https://api.openai.com/v1/chat/completions")
+
+    def verify(self):
+        s = self.controller.strings
+        self.status.config(text=s["verifying"], fg="black")
+        self.update()
+        ok, msg = verify_api_settings(
+            self.model_entry.get().strip(),
+            self.api_entry.get().strip(),
+            self.key_entry.get().strip(),
+        )
+        if ok:
+            self.status.config(text=msg or s["verify_success"], fg="green")
+            return True
+        else:
+            self.status.config(text=s["verify_fail"].format(msg), fg="red")
+            return False
+
+    def next_step(self):
+        if self.verify():
+            self.controller.show_frame("ProgressFrame")
 
 class ProgressFrame(tk.Frame):
     def __init__(self, parent, controller):
@@ -580,31 +679,10 @@ class FinishFrame(tk.Frame):
         self.finish_btn.config(text=s["finish"])
 
 def main():
-    parser = argparse.ArgumentParser(description="PotPlayer ChatGPT Translate Installer")
-    parser.add_argument("--dir", help="PotPlayer Translate directory")
-    parser.add_argument("--version", choices=["with_context", "without_context"], help="Plugin variant")
-    parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Language")
-    parser.add_argument("--silent", action="store_true", help="Run in CLI mode")
-    args = parser.parse_args()
-
     if not is_admin():
         restart_as_admin()
 
-    if args.silent:
-        if not args.dir or not args.version:
-            print("--dir and --version are required for --silent mode")
-            return
-        cli_install(args.dir, args.version, args.lang)
-        return
-
     app = InstallerApp()
-    if args.lang:
-        app.language = args.lang
-        app.strings = LANGUAGE_STRINGS[args.lang]
-    if args.dir:
-        app.install_dir = args.dir
-    if args.version:
-        app.version = args.version
     app.mainloop()
 
 if __name__ == "__main__":
