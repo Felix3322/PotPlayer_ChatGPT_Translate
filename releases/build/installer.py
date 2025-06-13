@@ -5,7 +5,8 @@ import sys
 import ctypes
 import threading
 import shutil
-import requests
+import json
+import urllib.request
 import win32com.client
 import webbrowser
 import winreg
@@ -215,28 +216,38 @@ def ensure_dir_exists(path):
 
 def verify_api_settings(model, api_url, api_key):
     api_url = api_url.strip().rstrip('/') or "https://api.openai.com/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    data = {
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = json.dumps({
         "model": model,
         "messages": [
             {"role": "system", "content": "You are a test assistant."},
-            {"role": "user", "content": "Hello"}
+            {"role": "user", "content": "Hello"},
         ],
         "max_tokens": 1,
-        "temperature": 0
-    }
+        "temperature": 0,
+    }).encode("utf-8")
+
+    def post(url: str):
+        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
     try:
-        r = requests.post(api_url, json=data, timeout=10, headers=headers)
-        if r.ok and r.json().get("choices"):
+        resp_json = post(api_url)
+        if resp_json.get("choices"):
             return True, ""
-        msg = r.json().get("error", {}).get("message", "Invalid response")
+        msg = resp_json.get("error", {}).get("message", "Invalid response")
     except Exception as e:
         msg = str(e)
+
     if "chat/completions" not in api_url:
-        corrected = api_url + "/chat/completions"
+        corrected = api_url.rstrip('/') + "/chat/completions"
         try:
-            r = requests.post(corrected, json=data, timeout=10, headers=headers)
-            if r.ok and r.json().get("choices"):
+            resp_json = post(corrected)
+            if resp_json.get("choices"):
                 return True, f"Warning: Your API base was auto-corrected to: {corrected}"
         except Exception:
             pass
