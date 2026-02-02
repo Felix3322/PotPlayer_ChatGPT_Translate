@@ -18,7 +18,7 @@ defaults:
 
 jobs:
   review:
-    runs-on: 'ubuntu-latest'
+    runs-on: ubuntu-latest
     timeout-minutes: 7
     permissions:
       contents: 'read'

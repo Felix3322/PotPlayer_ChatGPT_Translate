@@ -193,12 +193,6 @@ OpenAI GPT-5 Nano: gpt-5-nano|https://api.openai.com/v1/chat/completions
 OpenAI GPT-4.1: gpt-4.1|https://api.openai.com/v1/chat/completions
 OpenAI GPT-4.1 Mini: gpt-4.1-mini|https://api.openai.com/v1/chat/completions
 Gemini Flash: gemini-3-flash-preview|https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
-OpenAI GPT-5: gpt-5|https://api.openai.com/v1/chat/completions
-OpenAI GPT-5 Mini: gpt-5-mini|https://api.openai.com/v1/chat/completions
-OpenAI GPT-5 Nano: gpt-5-nano|https://api.openai.com/v1/chat/completions
-OpenAI GPT-4.1: gpt-4.1|https://api.openai.com/v1/chat/completions
-OpenAI GPT-4.1 Mini: gpt-4.1-mini|https://api.openai.com/v1/chat/completions
-Gemini Flash: gemini-3-flash-preview|https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
 Deepseek: deepseek-chat|https://api.deepseek.com/v1/chat/completions
 Tongyi Qianwen: qwen-plus|https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions
 SiliconFlow: siliconflow-chat|https://api.siliconflow.cn/v1/chat/completions
