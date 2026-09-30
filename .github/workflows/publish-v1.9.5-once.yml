@@ -1,0 +1,170 @@
+name: Publish approved v1.9.5 once
+
+# Bounded bootstrap for the user-approved release. This file exists only on
+# release/bootstrap-v1.9.5; normal future tag releases use release.yml on master.
+on:
+  push:
+    branches: [release/bootstrap-v1.9.5]
+    paths: [.github/workflows/publish-v1.9.5-once.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-approved-v1.9.5-once
+  cancel-in-progress: false
+
+jobs:
+  test:
+    if: github.repository == 'Felix3322/PotPlayer_ChatGPT_Translate' && github.ref == 'refs/heads/release/bootstrap-v1.9.5'
+    name: Regression and packaging tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: b49d022737e6fe343322127029b147bc92950bf5
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: v1.9.5
+        run: |
+          python3 -c 'import os; from scripts.package_release import validate_version; validate_version(os.environ["RELEASE_TAG"])'
+      - name: Test release staging and checksums
+        run: python3 -m unittest discover -s tests -p 'test_release_*.py' -v
+      - name: Download pinned AngelScript SDK
+        run: |
+          curl --fail --silent --show-error --location --retry 3 https://www.angelcode.com/angelscript/sdk/files/angelscript_2.38.0.zip -o "$RUNNER_TEMP/angelscript.zip"
+          echo 'b33b5dbcda10317ef67d628353d83246984ce6fcac102d4dc2aed121eba52e6f  '"$RUNNER_TEMP/angelscript.zip" | sha256sum --check -
+          unzip -q "$RUNNER_TEMP/angelscript.zip" -d "$RUNNER_TEMP/angelscript"
+      - name: Compile both production scripts and test thinking behavior
+        run: python3 tests/run_tests.py --sdk "$RUNNER_TEMP/angelscript/sdk"
+
+  build:
+    name: Windows installers and manual ZIP
+    needs: test
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: b49d022737e6fe343322127029b147bc92950bf5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12.10'
+          architecture: x64
+          cache: pip
+          cache-dependency-path: releases/build/requirements-build.txt
+      - name: Install pinned Python packaging dependencies
+        shell: pwsh
+        run: |
+          $venv = Join-Path $env:RUNNER_TEMP 'potplayer-python-venv'
+          python -m venv $venv
+          if ($LASTEXITCODE -ne 0) { throw 'Creating isolated Python environment failed.' }
+          & "$venv/Scripts/python.exe" -m pip install --disable-pip-version-check --requirement releases/build/requirements-build.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Installing pinned Python dependencies failed.' }
+          "$venv/Scripts" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Record build tool versions
+        shell: pwsh
+        run: |
+          python --version
+          python -m PyInstaller --version
+          dotnet --list-sdks
+          & 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe' -latest -property installationVersion
+          Get-Item 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' | Select-Object -ExpandProperty VersionInfo
+      - name: Build every format from the current source
+        shell: pwsh
+        env:
+          REF_TYPE: tag
+          REF_NAME: v1.9.5
+        run: |
+          $version = if ($env:REF_TYPE -eq 'tag') { $env:REF_NAME } else { '0.0.0' }
+          ./scripts/build_release.ps1 -Version $version -OutputDir "$env:GITHUB_WORKSPACE/dist"
+      - name: Test MSI install, repair, uninstall and file ownership
+        shell: pwsh
+        run: ./tests/test_msi_lifecycle.ps1 -MsiPath ./dist/installer.msi -BuildInfoPath ./dist/BUILD-INFO.json
+      - name: Upload MSI diagnostic logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: msi-diagnostic-logs-${{ github.sha }}
+          path: ${{ runner.temp }}/potplayer-msi-test-logs/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload verified release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-assets-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  release:
+    name: Publish tagged GitHub release
+    if: github.repository == 'Felix3322/PotPlayer_ChatGPT_Translate' && github.ref == 'refs/heads/release/bootstrap-v1.9.5' && github.event_name == 'push'
+    needs: [test, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-assets-${{ github.sha }}
+          path: dist
+      - name: Check transferred assets
+        working-directory: dist
+        run: sha256sum --check SHA256SUMS
+      - name: Publish complete release without overwriting existing assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: v1.9.5
+          SOURCE_SHA: b49d022737e6fe343322127029b147bc92950bf5
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GITHUB_TOKEN-created tags do not trigger another workflow. This
+          # bounded run already built the exact target and publishes it below.
+          if gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" > existing-tag.json 2> tag-error.txt; then
+            echo 'The approved tag already exists; its target must match exactly.'
+          else
+            if ! grep -q 'HTTP 404' tag-error.txt; then
+              cat tag-error.txt >&2
+              exit 1
+            fi
+            gh api --method POST "repos/$GH_REPO/git/refs" \
+              -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$SOURCE_SHA"
+          fi
+          tag_commit=$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq .sha)
+          if [[ "$tag_commit" != "$SOURCE_SHA" ]]; then
+            echo 'The tag moved after this build started. Refusing to publish packages from a different revision.' >&2
+            exit 1
+          fi
+          python3 -c 'import json, os; info = json.load(open("dist/BUILD-INFO.json")); assert info["source_commit"] == os.environ["SOURCE_SHA"], "Artifact source commit mismatch"; assert not info["source_dirty"], "Refusing to publish a dirty-source build"'
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo 'A release already exists for this tag. Nothing was overwritten. Inspect the existing release before retrying.' >&2
+            exit 1
+          fi
+          cat > notes.md <<EOF
+          Built automatically from commit $SOURCE_SHA.
+
+          - installer.exe / installer-cpp.exe: native C++ installer (identical files)
+          - installer-python.exe: Python/PyInstaller installer
+          - installer-inno.exe: Inno Setup installer
+          - installer.msi: offline Windows Installer package; configure the API in PotPlayer afterward
+          - *-manual.zip: scripts, icons, license and manual-install instructions
+          - BUILD-INFO.json and SHA256SUMS: source revision, staged script hashes and asset checksums
+
+          Choose one installation method for a given folder. Back up existing plugin files before changing installer formats. Installers are unsigned. MSI uses a numeric MAJOR.MINOR.PATCH version.
+          EOF
+          # Stage assets privately first. A failed upload leaves only a draft.
+          release_flags=()
+          if [[ "${RELEASE_TAG%%+*}" == *-* ]]; then
+            release_flags+=(--prerelease --latest=false)
+          fi
+          gh release create "$RELEASE_TAG" dist/* --verify-tag --draft \
+            --title "PotPlayer ChatGPT Translate $RELEASE_TAG" --notes-file notes.md --generate-notes "${release_flags[@]}"
+          gh release edit "$RELEASE_TAG" --draft=false "${release_flags[@]}"
