@@ -42,6 +42,8 @@ if ([string]::IsNullOrWhiteSpace($version)) {
     throw 'Failed to determine plugin version.'
 }
 $version = $version.Trim()
+$numericVersion = ($version -split '-', 2)[0]
+if ($numericVersion -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid installer numeric version: $version" }
 
 $iscc = Get-IsccPath
 Write-Host "Using ISCC: $iscc"
@@ -50,7 +52,7 @@ New-Item -ItemType Directory -Path (Split-Path -Parent $outputExe) -Force | Out-
 
 $scriptPath = Join-Path $BuildDir 'installer.iss'
 Write-Host 'Building Inno Setup installer...'
-& $iscc '/Qp' ("/DPluginVersion=$version") ("/O$outputDirectory") ("/F$outputBaseName") $scriptPath
+& $iscc '/Qp' ("/DPluginVersion=$version") ("/DPluginNumericVersion=$numericVersion") ("/O$outputDirectory") ("/F$outputBaseName") $scriptPath
 if ($LASTEXITCODE -ne 0) {
     throw 'Inno Setup build failed.'
 }
