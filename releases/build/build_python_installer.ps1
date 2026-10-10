@@ -149,6 +149,30 @@ def main():
         environment["PYINSTALLER_CONFIG_DIR"] = str(temporary / "cache")
         environment["PYTHONDONTWRITEBYTECODE"] = "1"
         environment["PYTHONHASHSEED"] = "0"
+        match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:-[A-Za-z0-9.-]+)?", version)
+        if not match:
+            raise ValueError("Invalid Windows file version")
+        numeric = tuple(map(int, match.groups())) + (0,)
+        if any(part > 65535 for part in numeric):
+            raise ValueError("Windows version component exceeds 65535")
+        fields = {
+            "CompanyName": "Felix3322",
+            "FileDescription": "PotPlayer ChatGPT Translate installer",
+            "FileVersion": version,
+            "InternalName": "installer-python",
+            "OriginalFilename": "installer-python.exe",
+            "ProductName": "PotPlayer ChatGPT Translate",
+            "ProductVersion": version,
+        }
+        strings = ",".join(f"StringStruct({key!r}, {value!r})" for key, value in fields.items())
+        version_file = temporary / "version-info.txt"
+        version_file.write_text(
+            f"VSVersionInfo(ffi=FixedFileInfo(filevers={numeric!r}, prodvers={numeric!r}, "
+            "mask=0x3f, flags=0, OS=0x40004, fileType=1, subtype=0, date=(0, 0)), "
+            f"kids=[StringFileInfo([StringTable('040904b0', [{strings}])]), "
+            "VarFileInfo([VarStruct('Translation', [1033, 1200])])])",
+            encoding="utf-8",
+        )
         command = [
             sys.executable, "-m", "PyInstaller",
             "--noconfirm", "--clean", "--onefile", "--windowed", "--noupx",
@@ -158,6 +182,7 @@ def main():
             "--workpath", str(temporary / "work"),
             "--specpath", str(temporary),
             "--icon", str(root / "icon.ico"),
+            "--version-file", str(version_file),
             "--collect-all", "openai",
             "--recursive-copy-metadata", "openai",
             "--hidden-import", "win32com.client",

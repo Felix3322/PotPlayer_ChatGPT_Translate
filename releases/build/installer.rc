@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <commctrl.h>
 #include "resource.h"
+#include "generated/installer_version.rc"
 
 IDI_INSTALLER_ICON ICON "..\\..\\icon.ico"
 1 24 "installer.manifest"

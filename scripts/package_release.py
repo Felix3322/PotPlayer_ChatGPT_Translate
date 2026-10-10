@@ -20,7 +20,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 PLUGINS = ("SubtitleTranslate - ChatGPT.as", "SubtitleTranslate - ChatGPT - Without Context.as")
 PAYLOAD = (*PLUGINS, *(str(Path(p).with_suffix('.ico')) for p in PLUGINS))
-DOCS = ("LICENSE", "README.md", "docs/readme_zh.md", "docs/readme_zh-tw.md", "docs/BUILDING.md", "installer/msi/README.md")
+DOCS = ("LICENSE", "README.md", "docs/readme_zh.md", "docs/readme_zh-tw.md", "docs/BUILDING.md", "docs/SIGNING-READINESS.md", "installer/msi/README.md")
 INSTALLERS = ("installer.exe", "installer-cpp.exe", "installer-python.exe", "installer-inno.exe", "installer.msi")
 BUILD_EXTENSIONS = {'.py', '.ps1', '.bat', '.h', '.cpp', '.rc', '.manifest', '.json', '.txt', '.iss', '.isl', '.wxs', '.wxl', '.rtf'}
 VERSION_PATTERN = re.compile(r'v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*))?(?:\+([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*))?\Z')
