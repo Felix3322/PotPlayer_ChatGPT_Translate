@@ -2,6 +2,9 @@
 #ifndef PluginVersion
   #define PluginVersion "dev"
 #endif
+#ifndef PluginNumericVersion
+  #define PluginNumericVersion "0.0.0"
+#endif
 
 [Setup]
 AppId={code:GetDynamicAppId}
@@ -9,6 +12,11 @@ AppName={#MyAppName}
 AppVersion={#PluginVersion}
 AppVerName={#MyAppName} {#PluginVersion}
 AppPublisher=Felix3322
+VersionInfoProductName={#MyAppName}
+VersionInfoVersion={#PluginNumericVersion}
+VersionInfoProductVersion={#PluginNumericVersion}
+VersionInfoProductTextVersion={#PluginVersion}
+VersionInfoTextVersion={#PluginVersion}
 AppPublisherURL=https://github.com/Felix3322/PotPlayer_ChatGPT_Translate
 DefaultDirName={code:GetDefaultInstallDir}
 DisableProgramGroupPage=yes

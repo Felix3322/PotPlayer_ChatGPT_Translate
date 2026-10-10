@@ -85,8 +85,8 @@ jobs:
           $info = Get-Content ./dist/BUILD-INFO.json -Raw | ConvertFrom-Json
           foreach ($name in @('installer.exe', 'installer-cpp.exe', 'installer-python.exe', 'installer-inno.exe')) {
             $metadata = (Get-Item (Join-Path ./dist $name)).VersionInfo
-            if ($metadata.ProductName -ne 'PotPlayer ChatGPT Translate') { throw "Unexpected product name in $name" }
-            if ($metadata.ProductVersion -ne $info.version) { throw "Unexpected product version in $name" }
+            if ($metadata.ProductName -ne 'PotPlayer ChatGPT Translate') { throw "Unexpected product name in ${name}: [$($metadata.ProductName)]" }
+            if ($metadata.ProductVersion -ne $info.version) { throw "Unexpected product version in ${name}: [$($metadata.ProductVersion)] expected [$($info.version)]" }
           }
       - name: Test MSI install, repair, uninstall and file ownership
         shell: pwsh
