@@ -77,8 +77,17 @@ jobs:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          $version = if ($env:REF_TYPE -eq 'tag') { $env:REF_NAME } else { '0.0.0' }
+          $version = if ($env:REF_TYPE -eq 'tag') { $env:REF_NAME } else { (Get-Content -LiteralPath ./VERSION -Raw).Trim() }
           ./scripts/build_release.ps1 -Version $version -OutputDir "$env:GITHUB_WORKSPACE/dist"
+      - name: Verify executable product and version metadata
+        shell: pwsh
+        run: |
+          $info = Get-Content ./dist/BUILD-INFO.json -Raw | ConvertFrom-Json
+          foreach ($name in @('installer.exe', 'installer-cpp.exe', 'installer-python.exe', 'installer-inno.exe')) {
+            $metadata = (Get-Item (Join-Path ./dist $name)).VersionInfo
+            if ($metadata.ProductName -ne 'PotPlayer ChatGPT Translate') { throw "Unexpected product name in $name" }
+            if ($metadata.ProductVersion -ne $info.version) { throw "Unexpected product version in $name" }
+          }
       - name: Test MSI install, repair, uninstall and file ownership
         shell: pwsh
         run: ./tests/test_msi_lifecycle.ps1 -MsiPath ./dist/installer.msi -BuildInfoPath ./dist/BUILD-INFO.json
@@ -143,6 +152,8 @@ jobs:
           - installer.msi: offline Windows Installer package; configure the API in PotPlayer afterward
           - *-manual.zip: scripts, icons, license and manual-install instructions
           - BUILD-INFO.json and SHA256SUMS: source revision, staged script hashes and asset checksums
+
+          Code signing policy: https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/$SOURCE_SHA/docs/SIGNING-READINESS.md
 
           Choose one installation method for a given folder. Back up existing plugin files before changing installer formats. Installers are unsigned. MSI uses a numeric MAJOR.MINOR.PATCH version.
           EOF

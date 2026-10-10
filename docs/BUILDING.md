@@ -3,6 +3,9 @@
 The `Build release packages` workflow runs regression tests and builds the same
 installer set on pull requests, pushes to `master`, manual runs, and **every tag
 push**. A tag must be a release version such as `v1.9.5`, `1.9.5` or `v1.9.5-rc.1`.
+Non-tag builds use the version in the root `VERSION` file (currently `1.9.6`);
+tag builds use the tag version. CI checks executable product-name and version
+metadata before uploading packages.
 Invalid/non-version tags fail early rather than publishing mislabeled packages.
 Windows Installer restricts the numeric components to `255.255.65535`. The full
 release version remains visible, but MSI compares only the numeric core. Build
@@ -75,8 +78,8 @@ git push origin v1.9.5
 The tag run validates both full AngelScript plugins (mocked PotPlayer host), builds
 all formats on Windows, verifies/checksums the assets, and uploads them to a draft
 GitHub Release. Only after all uploads succeed is the release published. PR,
-branch and manual builds only provide downloadable Actions artifacts (version
-`0.0.0` for preview), and cannot publish a release. Ordinary build/test jobs get
+branch and manual builds only provide downloadable Actions artifacts using
+`VERSION`, and cannot publish a release. Ordinary build/test jobs get
 `contents: read`; only the tag publication job gets `contents: write`. No PAT or
 new repository secret is needed. Existing Gemini workflows are independent.
 
