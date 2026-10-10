@@ -127,6 +127,10 @@ This project is not limited to OpenAI models. Any model or service that follows 
 
 ## Installation
 
+See [Code signing policy and privacy information](docs/SIGNING-READINESS.md) for
+source verification, API data handling, credential storage and uninstall details.
+
+
 ### Fully Automatic Installation Recommended
 
 This is the recommended method for normal users.

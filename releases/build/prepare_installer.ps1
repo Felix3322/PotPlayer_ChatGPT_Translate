@@ -90,3 +90,41 @@ $headerPath = Join-Path $generatedDir 'installer_generated.h'
 Set-Content -LiteralPath $headerPath -Value $header.ToString() -Encoding utf8
 
 Write-Host "Generated $headerPath with version $version"
+
+# PE metadata is separate from the UI version and uninstall registry value.
+if ($version -notmatch '^(\d+)\.(\d+)\.(\d+)(?:-[A-Za-z0-9.-]+)?$') {
+    throw "Invalid Windows file version: $version"
+}
+$parts = @([int]$Matches[1], [int]$Matches[2], [int]$Matches[3], 0)
+if (@($parts | Where-Object { $_ -gt 65535 }).Count) { throw 'Windows version component exceeds 65535.' }
+$numeric = $parts -join ','
+$versionResource = @"
+1 VERSIONINFO
+FILEVERSION $numeric
+PRODUCTVERSION $numeric
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0
+FILEOS 0x40004L
+FILETYPE 1
+FILESUBTYPE 0
+BEGIN
+ BLOCK "StringFileInfo"
+ BEGIN
+  BLOCK "040904b0"
+  BEGIN
+   VALUE "CompanyName", "Felix3322"
+   VALUE "FileDescription", "PotPlayer ChatGPT Translate installer"
+   VALUE "FileVersion", "$version"
+   VALUE "InternalName", "installer"
+   VALUE "OriginalFilename", "installer.exe"
+   VALUE "ProductName", "PotPlayer ChatGPT Translate"
+   VALUE "ProductVersion", "$version"
+  END
+ END
+ BLOCK "VarFileInfo"
+ BEGIN
+  VALUE "Translation", 0x0409, 1200
+ END
+END
+"@
+Set-Content -LiteralPath (Join-Path $generatedDir 'installer_version.rc') -Value $versionResource -Encoding ascii
