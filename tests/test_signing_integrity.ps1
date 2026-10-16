@@ -48,6 +48,31 @@ try {
     }
     Write-Host 'PASS untrusted self-signed EXE/MSI fixture cryptography and file digests'
 
+    # Exercise the exact single-file/raw-download shape used by the review job.
+    $nativeOnly = Join-Path $temp 'native-only'
+    New-Item -ItemType Directory -Path $nativeOnly | Out-Null
+    Copy-Item -LiteralPath (Join-Path $fixtures 'installer-cpp.exe') -Destination $nativeOnly
+    & $verify -ArtifactDirectory $nativeOnly -ReportPath $report -NativeOnly
+    $nativeResults = @(Get-Content -LiteralPath $report -Raw | ConvertFrom-Json)
+    if ($nativeResults.Count -ne 1 -or $nativeResults[0].file -ne 'installer-cpp.exe' -or -not $nativeResults[0].integrity_verified) {
+        throw 'Native-only fixture was not verified as one JSON-array entry.'
+    }
+    $extra = Join-Path $nativeOnly 'unexpected.exe'
+    Copy-Item -LiteralPath (Join-Path $fixtures 'installer-cpp.exe') -Destination $extra
+    $rejected = $false
+    try { & $verify -ArtifactDirectory $nativeOnly -ReportPath $report -NativeOnly }
+    catch { $rejected = $true }
+    if (-not $rejected) { throw 'Native-only verifier accepted extra files.' }
+    Remove-Item -LiteralPath $extra
+    $nativeBytes = [System.IO.File]::ReadAllBytes((Join-Path $nativeOnly 'installer-cpp.exe'))
+    $nativeBytes[0x40] = $nativeBytes[0x40] -bxor 1
+    [System.IO.File]::WriteAllBytes((Join-Path $nativeOnly 'installer-cpp.exe'), $nativeBytes)
+    $rejected = $false
+    try { & $verify -ArtifactDirectory $nativeOnly -ReportPath $report -NativeOnly }
+    catch { $rejected = $true }
+    if (-not $rejected) { throw 'Native-only verifier accepted a tampered PE.' }
+    Write-Host 'PASS native-only signature, JSON-array report, extra-file and tamper checks'
+
     $native = Join-Path $fixtures 'installer-cpp.exe'
     $original = [System.IO.File]::ReadAllBytes($native)
     $tampered = $original.Clone()

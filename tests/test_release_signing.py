@@ -35,10 +35,10 @@ class TestSigningPackaging(unittest.TestCase):
             f'{signing.digest(p)}  {p.name}\n' for p in sorted(self.unsigned.iterdir()) if p.name != 'SHA256SUMS'
         ))
 
-    def test_prepare_selects_only_four_current_installers(self):
+    def test_prepare_selects_only_current_native_installer(self):
         output = self.root / 'input'
         signing.prepare(self.unsigned, output, COMMIT)
-        self.assertEqual({p.name for p in output.iterdir()}, set(signing.SIGNABLE))
+        self.assertEqual({p.name for p in output.iterdir()}, {'installer-cpp.exe'})
         for path in output.iterdir():
             self.assertEqual(path.read_bytes(), (self.unsigned / path.name).read_bytes())
         with self.assertRaises(ValueError):
@@ -94,9 +94,16 @@ class TestSigningPackaging(unittest.TestCase):
         self.assertNotEqual((output / 'SHA256SUMS').read_bytes(), (self.unsigned / 'SHA256SUMS').read_bytes())
         notice = (output / 'TEST-SIGNING-ONLY.txt').read_text()
         self.assertIn('NOT A TRUSTED PRODUCTION RELEASE', notice)
-        self.assertIn('selected SignPath artifact configuration determines nested signing scope', notice)
+        self.assertIn('Only the native installer-cpp.exe was submitted as one raw PE artifact', notice)
+        self.assertIn('Python, Inno and MSI installers are not signed or included', notice)
         self.assertNotIn('Only the outer EXE/MSI files were signed', notice)
-        self.assertTrue(json.loads((output / 'SIGNING-INFO.json').read_text())['test_signing_only'])
+        info = json.loads((output / 'SIGNING-INFO.json').read_text())
+        self.assertTrue(info['test_signing_only'])
+        self.assertEqual(info['signing_scope'], 'native-installer-only')
+        self.assertEqual(info['input_artifact_format'], 'raw-pe')
+        self.assertEqual(info['signed_files'], ['installer-cpp.exe'])
+        self.assertEqual({p.name for p in output.glob('*.exe')}, {'installer-cpp.exe', 'installer.exe'})
+        self.assertFalse((output / 'installer.msi').exists())
         for line in (output / 'SHA256SUMS').read_text().splitlines():
             checksum, name = line.split('  ')
             self.assertEqual(checksum, hashlib.sha256((output / name).read_bytes()).hexdigest())
@@ -124,6 +131,29 @@ class TestSigningPackaging(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.finish(signed, report, self.root / 'out')
 
+    def test_finish_rejects_extra_missing_or_non_native_outputs(self):
+        signed, report = self.make_signed()
+        extra = signed / 'installer-python.exe'
+        extra.write_bytes(b'unexpected signed installer')
+        with self.assertRaises(ValueError):
+            self.finish(signed, report, self.root / 'out')
+        extra.unlink()
+        native = signed / 'installer-cpp.exe'
+        native.rename(signed / 'unexpected.exe')
+        with self.assertRaises(ValueError):
+            self.finish(signed, report, self.root / 'out')
+        (signed / 'unexpected.exe').unlink()
+        with self.assertRaises(ValueError):
+            self.finish(signed, report, self.root / 'out')
+
+    def test_finish_requires_one_native_signature_report_entry(self):
+        signed, report = self.make_signed()
+        original = json.loads(report.read_text())
+        for results in ([], original * 2, original[0], [dict(original[0], file='installer-python.exe')]):
+            report.write_text(json.dumps(results))
+            with self.subTest(results=results), self.assertRaises(ValueError):
+                self.finish(signed, report, self.root / 'out')
+
     def test_workflow_defaults_to_project_configuration_with_test_policy(self):
         # Guard the integration contract without adding a YAML dependency to CI.
         # actionlint separately validates the complete workflow syntax.
@@ -137,13 +167,21 @@ class TestSigningPackaging(unittest.TestCase):
         self.assertIn('          artifact-configuration-slug: ${{ inputs.artifact_configuration_slug }}', workflow)
         self.assertNotIn('ARTIFACT_CONFIGURATION', workflow)
         self.assertIn('if [[ -z "$SIGNPATH_API_TOKEN" ]]', workflow)
+        upload = workflow.split('        id: unsigned', 1)[1].split('      - name: Submit', 1)[0]
+        self.assertIn('actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9', upload)
+        self.assertIn('          archive: false', upload)
+        self.assertIn('          path: signing-input/installer-cpp.exe', upload)
+        self.assertNotIn('          name:', upload)
+        self.assertIn('          skip-decompress: true', workflow)
+        self.assertIn('-ReportPath SIGNATURES.json -NativeOnly', workflow)
 
-    def test_artifact_configuration_matches_exact_signing_scope(self):
+    def test_optional_zip_template_is_separate_from_native_review_scope(self):
         ns = {'s': 'http://signpath.io/artifact-configuration/v1'}
         tree = ET.parse(ROOT / '.signpath/test-installers.xml')
         archive = tree.getroot().find('s:zip-file', ns)
         self.assertIsNotNone(archive)
-        self.assertEqual({item.attrib['path'] for item in archive}, set(signing.SIGNABLE))
+        self.assertEqual({item.attrib['path'] for item in archive}, set(signing.INSTALLERS) - {'installer.exe'})
+        self.assertEqual(signing.SIGNABLE, ('installer-cpp.exe',))
         for item in archive:
             self.assertIsNotNone(item.find('s:authenticode-sign', ns))
             self.assertNotIn('*', item.attrib['path'])

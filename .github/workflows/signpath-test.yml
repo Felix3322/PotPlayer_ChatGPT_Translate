@@ -59,21 +59,22 @@ jobs:
         with:
           name: release-assets-${{ github.sha }}
           path: unsigned-release
-      - name: Verify provenance and stage exactly the requested installers
+      - name: Verify provenance and stage only the native PE installer
         shell: pwsh
         env:
           SOURCE_SHA: ${{ github.sha }}
         run: |
           python scripts/package_test_signing.py prepare --unsigned unsigned-release --output signing-input --commit $env:SOURCE_SHA
           if ($LASTEXITCODE -ne 0) { throw 'Unsigned artifact preparation failed.' }
-      - name: Upload unsigned signing input for GitHub origin verification
+      - name: Upload one raw PE for GitHub origin verification
         id: unsigned
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: signpath-test-unsigned-${{ github.sha }}
-          path: signing-input/*
+          # No ZIP wrapper: matches the existing default <pe-file> configuration.
+          # In raw mode the filename is the artifact name; `name` is ignored.
+          path: signing-input/installer-cpp.exe
+          archive: false
           if-no-files-found: error
-          compression-level: 0
           retention-days: 14
       - name: Submit to the TEST signing policy
         id: signpath
@@ -89,9 +90,10 @@ jobs:
           wait-for-completion: true
           wait-for-completion-timeout-in-seconds: 1200
           output-artifact-directory: signed-installers
+          skip-decompress: true
       - name: Verify test-signature integrity and record certificate trust separately
         shell: pwsh
-        run: ./scripts/verify_test_signatures.ps1 -ArtifactDirectory signed-installers -ReportPath SIGNATURES.json
+        run: ./scripts/verify_test_signatures.ps1 -ArtifactDirectory signed-installers -ReportPath SIGNATURES.json -NativeOnly
       - name: Assemble labelled test output and recalculate all checksums
         shell: pwsh
         env:
@@ -104,6 +106,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Test-signing output validation failed.' }
           @"
           ## TEST SIGNING ONLY
+          Native installer test only. Python, Inno and MSI installers are not signed by this run.
           These artifacts are for SignPath setup review, not production distribution.
           Source commit: $env:SOURCE_SHA
           Signing request: $env:SIGNING_REQUEST_URL
