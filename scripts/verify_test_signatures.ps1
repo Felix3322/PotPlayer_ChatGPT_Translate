@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$ArtifactDirectory,
-    [Parameter(Mandatory = $true)][string]$ReportPath
+    [Parameter(Mandatory = $true)][string]$ReportPath,
+    [switch]$NativeOnly
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -10,6 +11,13 @@ if (-not ('AuthenticodeIntegrity' -as [type])) {
 }
 Add-Type -AssemblyName System.Security.Cryptography.Pkcs
 $names = @('installer-cpp.exe', 'installer-python.exe', 'installer-inno.exe', 'installer.msi')
+if ($NativeOnly) { $names = @('installer-cpp.exe') }
+if ($NativeOnly) {
+    $entries = @(Get-ChildItem -LiteralPath $ArtifactDirectory -Force)
+    if ($entries.Count -ne 1 -or $entries[0].Name -cne 'installer-cpp.exe' -or $entries[0].PSIsContainer -or ($entries[0].Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+        throw 'Native-only signed output must contain exactly installer-cpp.exe.'
+    }
+}
 $results = [System.Collections.Generic.List[object]]::new()
 $failures = [System.Collections.Generic.List[string]]::new()
 foreach ($name in $names) {
@@ -48,4 +56,4 @@ foreach ($name in $names) {
 }
 ConvertTo-Json -InputObject @($results.ToArray()) -Depth 5 | Set-Content -LiteralPath $ReportPath -Encoding utf8
 if ($failures.Count -gt 0) { throw ($failures -join "`n") }
-Write-Host 'Verified embedded signature cryptography and covered file digests for all four installers. Public trust and Foundation approval are not established.'
+Write-Host "Verified embedded signature cryptography and covered file digests for $($names.Count) installer(s). Public trust and Foundation approval are not established."

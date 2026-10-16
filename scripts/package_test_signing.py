@@ -15,7 +15,8 @@ import shutil
 
 from package_release import INSTALLERS, validate_version
 
-SIGNABLE = ('installer-cpp.exe', 'installer-python.exe', 'installer-inno.exe', 'installer.msi')
+# The existing default SignPath configuration accepts a single PE, not a ZIP.
+SIGNABLE = ('installer-cpp.exe',)
 
 
 def digest(path: Path) -> str:
@@ -66,7 +67,7 @@ def finish(source: Path, signed: Path, report: Path, output: Path, commit: str,
     info = inspect_unsigned(source, commit)
     entries = list(signed.iterdir())
     if {p.name for p in entries} != set(SIGNABLE) or any(not p.is_file() or p.is_symlink() for p in entries):
-        raise ValueError('Signed output must contain exactly the four requested installers')
+        raise ValueError('Signed output must contain exactly the requested native installer')
     signatures = json.loads(report.read_text(encoding='utf-8-sig'))
     if not isinstance(signatures, list) or len(signatures) != len(SIGNABLE):
         raise ValueError('Incomplete Windows signature report')
@@ -93,11 +94,16 @@ def finish(source: Path, signed: Path, report: Path, output: Path, commit: str,
         'These files were submitted using the SignPath test-signing policy.\n'
         'A successful test does not establish SignPath Foundation approval, public\n'
         'certificate trust, or SmartScreen reputation. Do not distribute as a release.\n'
-        'The manual ZIP is unchanged and unsigned. Four outer EXE/MSI files were submitted.\n'
-        'The selected SignPath artifact configuration determines nested signing scope.\n'
-        'Review that configuration; outer signature checks do not verify nested signatures.\n', encoding='utf-8')
+        'Only the native installer-cpp.exe was submitted as one raw PE artifact.\n'
+        'installer.exe is an identical copy of that signed native installer.\n'
+        'Python, Inno and MSI installers are not signed or included in this test bundle.\n'
+        'The manual ZIP is unchanged and unsigned.\n'
+        'Outer signature checks do not verify nested signatures.\n', encoding='utf-8')
     (output / 'SIGNING-INFO.json').write_text(json.dumps({
         'test_signing_only': True,
+        'signing_scope': 'native-installer-only',
+        'input_artifact_format': 'raw-pe',
+        'excluded_installers': ['installer-python.exe', 'installer-inno.exe', 'installer.msi'],
         'organization_id': 'a92b315d-b2eb-4998-ae95-5e23493e69d9',
         'project_slug': 'PotPlayer_Chatgpt_Translate',
         'signing_policy_slug': 'test-signing',
