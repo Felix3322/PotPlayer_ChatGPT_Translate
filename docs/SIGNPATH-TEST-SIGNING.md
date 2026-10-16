@@ -15,10 +15,17 @@ approval. A test certificate is not a publicly trusted release certificate.
    - Signing policy: `test-signing`, using the **test certificate**
    - The token's user must be a **Submitter** for that policy. An API token by
      itself does not grant submitter permission.
-3. Create an artifact configuration with slug **`test-installers`**, using
-   [the complete XML](../.signpath/test-installers.xml). If you already have an
-   equivalent configuration, enter its actual slug when running the workflow.
-   This repository file is a template; committing it does not configure SignPath.
+3. Keep the existing **`test-signing` signing policy**. Leave the workflow's
+   optional artifact configuration input **empty** to use the project's default
+   artifact configuration, as in SignPath's generated `Submit-SigningRequest`
+   snippet. The signing policy and artifact configuration are separate settings;
+   `test-signing` is the policy slug, not a required artifact configuration slug.
+   You do not need to create a `test-installers` configuration merely to run this
+   workflow. If the existing configuration cannot process the four-file ZIP,
+   inspect the actual signing error and configuration before changing anything.
+   [The supplied XML](../.signpath/test-installers.xml) is an optional, narrow
+   template for that ZIP; committing it does not configure SignPath. Only use an
+   explicit artifact configuration slug when an appropriate configuration exists.
 4. Link the project's trusted build system to **GitHub.com** and the canonical
    repository. Complete any SignPath GitHub App installation/access steps required
    by your SignPath setup. These are account/access changes for the maintainer;
@@ -29,15 +36,19 @@ approval. A test certificate is not a publicly trusted release certificate.
    protection, signing policy permissions, or production certificates.
 
 中文要点：把令牌仅保存为 GitHub Actions 机密 `SIGNPATH_API_TOKEN`；确认令牌所属用户
-是 `test-signing` 的 Submitter，并且该策略使用测试证书。在 SignPath 新建
-`test-installers` 制品配置，完整粘贴本仓库 XML，并关联 GitHub 可信构建来源。
-代码合并到 `master` 后才能首次从 Actions 页面手动运行。
+是 `test-signing` 的 Submitter，并且该策略使用测试证书。继续使用已有的
+`test-signing` 签名策略；运行时将可选的制品配置输入留空，使用项目默认配置。
+不必先创建 `test-installers`。签名策略 slug 和制品配置 slug 是两个不同字段。
+如实际请求报告制品结构不匹配，再检查默认配置和仓库 XML；不要为此修改签名策略。
+项目需关联 GitHub 可信构建来源，代码合并到 `master` 后才能首次手动运行。
 
 ## Run and collect review evidence / 运行与审核材料
 
 1. Open **Actions → SignPath test signing → Run workflow**.
-2. Select the reviewed source branch (normally `master`). Leave the artifact
-   configuration as `test-installers`, unless you configured an equivalent slug.
+2. Select the reviewed source branch (normally `master`). Leave
+   `artifact_configuration_slug` **empty** to use the project's default. Supply
+   an override only if you know the slug of an appropriate existing artifact
+   configuration. The signing policy remains fixed at **`test-signing`**.
 3. The workflow runs the same source builds, regression tests, executable metadata
    checks, MSI lifecycle tests, and signature-verifier fixture tests as release CI.
    It never reads historical binaries under `releases/latest` or `releases/archive`.
@@ -69,11 +80,15 @@ The unsigned GitHub artifact is a ZIP containing four files at its root:
 - `installer-inno.exe`: current Inno installer
 - `installer.msi`: current MSI package
 
-The XML requires these exact files and restricts the three EXEs to the expected
-product name. Only the **outer** files receive Authenticode signatures. It does
-not independently sign embedded Python/runtime components, MSI custom actions,
-Inno uninstallers, PotPlayer, the manual ZIP, or `.as`/`.ico` files. Production
-deep-signing scope must be agreed separately with SignPath.
+The optional repository XML requires these exact files and restricts the three
+EXEs to the expected product name. That template signs only the **outer** files;
+it does not independently sign embedded Python/runtime components, MSI custom
+actions, or Inno uninstallers. The selected SignPath configuration controls the
+service's actual signing scope. Its contents are not inferred from the policy
+slug, and the workflow does not create or modify it. Review that configuration
+before deliberately enabling deep signing, especially of third-party components.
+PotPlayer, the manual ZIP, and `.as`/`.ico` files are not in the signing input.
+Production deep-signing scope must be agreed separately with SignPath.
 
 After signing, `installer.exe` is copied from the signed `installer-cpp.exe` so
 the aliases stay identical. The unsigned manual ZIP and source `BUILD-INFO.json`
@@ -106,15 +121,22 @@ unsigned behavior. See [signing readiness](SIGNING-READINESS.md).
 - Missing secret: add `SIGNPATH_API_TOKEN` in GitHub Actions secrets, then rerun.
 - Forbidden/submitter error: verify the token's user is a submitter on the exact
   project and `test-signing` policy; do not broaden production access.
-- Unknown artifact configuration or file mismatch: compare the selected slug and
-  XML to `.signpath/test-installers.xml`. The outer uploaded container is a ZIP.
+- Unknown artifact configuration: remove an unintended override to use the
+  project default, or confirm the actual artifact configuration slug. Do not put
+  the signing policy slug in this field unless it is also a real configuration.
+- File/configuration mismatch: inspect the project's default (or explicitly
+  selected) configuration and the actual error. The uploaded container is a ZIP
+  with four installers. Compare it with `.signpath/test-installers.xml` before
+  deciding whether any configuration change is needed. Do not change policy or
+  credential permissions to work around an artifact-shape error.
 - Origin error: verify the SignPath project's GitHub trusted-build integration
   and GitHub App access required by your setup. Do not bypass origin checks by
   switching to a direct upload.
 - Signature verification failure: inspect the diagnostic `SIGNATURES.json`.
   Never mark an unsigned, changed, or unverifiable file as successfully signed.
 
-References: [SignPath artifact configurations](https://docs.signpath.io/artifact-configuration/),
+References: [SignPath action inputs and default configuration](https://docs.signpath.io/trusted-build-systems/github#action-input-parameters),
+[SignPath artifact configurations](https://docs.signpath.io/artifact-configuration/),
 [configuration syntax](https://docs.signpath.io/artifact-configuration/syntax),
 [project/submitter setup](https://docs.signpath.io/projects),
 [Microsoft SignedCms](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.pkcs.signedcms.checksignature),
