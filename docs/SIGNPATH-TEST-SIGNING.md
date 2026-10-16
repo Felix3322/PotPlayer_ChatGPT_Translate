@@ -9,7 +9,7 @@ approval. A test certificate is not a publicly trusted release certificate.
 1. In GitHub, add the repository Actions secret **`SIGNPATH_API_TOKEN`** under
    **Settings → Secrets and variables → Actions**. Enter the token there only;
    never put its value in source, workflow inputs, issues, or logs.
-2. In SignPath, confirm these exact values (project slug capitalization matters):
+2. In SignPath, use these configured identifiers:
    - Organization: `a92b315d-b2eb-4998-ae95-5e23493e69d9`
    - Project: `PotPlayer_Chatgpt_Translate`
    - Signing policy: `test-signing`, using the **test certificate**

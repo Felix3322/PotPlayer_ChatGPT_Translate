@@ -38,7 +38,7 @@ try {
         [System.Security.Cryptography.X509Certificates.X509KeyUsageFlags]::DigitalSignature, $true))
     $certificate = $request.CreateSelfSigned([DateTimeOffset]::UtcNow.AddMinutes(-5), [DateTimeOffset]::UtcNow.AddHours(1))
     foreach ($name in $names) {
-        $signed = Set-AuthenticodeSignature -LiteralPath (Join-Path $fixtures $name) -Certificate $certificate -HashAlgorithm SHA256
+        $signed = Set-AuthenticodeSignature -LiteralPath (Join-Path $fixtures $name) -Certificate $certificate -HashAlgorithm SHA256 -IncludeChain Signer
         if ($null -eq $signed.SignerCertificate) { throw "Could not sign fixture: $name" }
     }
     & $verify -ArtifactDirectory $fixtures -ReportPath $report
@@ -70,9 +70,21 @@ try {
     [System.IO.File]::WriteAllBytes($native, $original)
 
     $msi = Join-Path $fixtures 'installer.msi'
-    $tampered = [System.IO.File]::ReadAllBytes($msi)
-    $tampered[4096] = $tampered[4096] -bxor 1
-    [System.IO.File]::WriteAllBytes($msi, $tampered)
+    # MSI signs logical compound-storage streams, not all physical padding.
+    # Change an actual Property-table value rather than an arbitrary file byte.
+    $installer = New-Object -ComObject WindowsInstaller.Installer
+    $database = $installer.OpenDatabase($msi, 1)
+    $view = $database.OpenView("UPDATE ``Property`` SET ``Value`` = 'Tampered fixture product' WHERE ``Property`` = 'ProductName'")
+    try {
+        $view.Execute()
+        $view.Close()
+        $database.Commit()
+    }
+    finally {
+        [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($view)
+        [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($database)
+        [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($installer)
+    }
     Assert-Rejected 'content-tampered MSI'
 }
 finally {
