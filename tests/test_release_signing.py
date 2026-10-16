@@ -92,7 +92,10 @@ class TestSigningPackaging(unittest.TestCase):
         self.finish(signed, report, output)
         self.assertEqual((output / 'installer.exe').read_bytes(), (output / 'installer-cpp.exe').read_bytes())
         self.assertNotEqual((output / 'SHA256SUMS').read_bytes(), (self.unsigned / 'SHA256SUMS').read_bytes())
-        self.assertIn('NOT A TRUSTED PRODUCTION RELEASE', (output / 'TEST-SIGNING-ONLY.txt').read_text())
+        notice = (output / 'TEST-SIGNING-ONLY.txt').read_text()
+        self.assertIn('NOT A TRUSTED PRODUCTION RELEASE', notice)
+        self.assertIn('selected SignPath artifact configuration determines nested signing scope', notice)
+        self.assertNotIn('Only the outer EXE/MSI files were signed', notice)
         self.assertTrue(json.loads((output / 'SIGNING-INFO.json').read_text())['test_signing_only'])
         for line in (output / 'SHA256SUMS').read_text().splitlines():
             checksum, name = line.split('  ')
@@ -120,6 +123,20 @@ class TestSigningPackaging(unittest.TestCase):
         report.write_text(json.dumps(results))
         with self.assertRaises(ValueError):
             self.finish(signed, report, self.root / 'out')
+
+    def test_workflow_defaults_to_project_configuration_with_test_policy(self):
+        # Guard the integration contract without adding a YAML dependency to CI.
+        # actionlint separately validates the complete workflow syntax.
+        workflow = (ROOT / '.github/workflows/signpath-test.yml').read_text()
+        inputs = workflow.split('    inputs:', 1)[1].split('\npermissions:', 1)[0]
+        self.assertIn('      artifact_configuration_slug:', inputs)
+        self.assertIn('        required: false', inputs)
+        self.assertIn("        default: ''", inputs)
+        self.assertNotIn('default: test-installers', inputs)
+        self.assertIn('          signing-policy-slug: test-signing', workflow)
+        self.assertIn('          artifact-configuration-slug: ${{ inputs.artifact_configuration_slug }}', workflow)
+        self.assertNotIn('ARTIFACT_CONFIGURATION', workflow)
+        self.assertIn('if [[ -z "$SIGNPATH_API_TOKEN" ]]', workflow)
 
     def test_artifact_configuration_matches_exact_signing_scope(self):
         ns = {'s': 'http://signpath.io/artifact-configuration/v1'}

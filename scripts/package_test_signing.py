@@ -93,8 +93,9 @@ def finish(source: Path, signed: Path, report: Path, output: Path, commit: str,
         'These files were submitted using the SignPath test-signing policy.\n'
         'A successful test does not establish SignPath Foundation approval, public\n'
         'certificate trust, or SmartScreen reputation. Do not distribute as a release.\n'
-        'The manual ZIP is unchanged and unsigned. Only the outer EXE/MSI files were signed.\n'
-        'Embedded runtimes, custom actions and uninstallers are outside this test scope.\n', encoding='utf-8')
+        'The manual ZIP is unchanged and unsigned. Four outer EXE/MSI files were submitted.\n'
+        'The selected SignPath artifact configuration determines nested signing scope.\n'
+        'Review that configuration; outer signature checks do not verify nested signatures.\n', encoding='utf-8')
     (output / 'SIGNING-INFO.json').write_text(json.dumps({
         'test_signing_only': True,
         'organization_id': 'a92b315d-b2eb-4998-ae95-5e23493e69d9',

@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       artifact_configuration_slug:
-        description: 'SignPath artifact configuration matching .signpath/test-installers.xml'
-        required: true
+        description: 'Optional artifact configuration override; leave empty to use the SignPath project default'
+        required: false
         type: string
-        default: test-installers
+        default: ''
 
 permissions:
   contents: read
@@ -24,19 +24,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require a submitter token and artifact configuration
+      - name: Require a submitter token
         env:
           SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
-          ARTIFACT_CONFIGURATION: ${{ inputs.artifact_configuration_slug }}
         shell: bash
         run: |
           set -euo pipefail
           if [[ -z "$SIGNPATH_API_TOKEN" ]]; then
             echo '::error::Add the SIGNPATH_API_TOKEN Actions secret for a test-signing submitter. Never paste it into a workflow input or log.'
-            exit 1
-          fi
-          if [[ -z "${ARTIFACT_CONFIGURATION//[[:space:]]/}" ]]; then
-            echo '::error::Select the SignPath artifact configuration matching .signpath/test-installers.xml.'
             exit 1
           fi
 
@@ -88,6 +83,7 @@ jobs:
           organization-id: a92b315d-b2eb-4998-ae95-5e23493e69d9
           project-slug: PotPlayer_Chatgpt_Translate
           signing-policy-slug: test-signing
+          # The official action treats empty and omitted inputs alike: use the project default.
           artifact-configuration-slug: ${{ inputs.artifact_configuration_slug }}
           github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
           wait-for-completion: true
