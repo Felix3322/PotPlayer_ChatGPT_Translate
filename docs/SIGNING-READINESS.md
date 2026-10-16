@@ -4,7 +4,7 @@ This project does not currently claim approval by SignPath Foundation or an acti
 Foundation release certificate. Test signatures must not be advertised as trusted
 release signatures. See the [Foundation conditions](https://signpath.org/terms).
 
-A separate, opt-in [SignPath test-signing workflow](SIGNPATH-TEST-SIGNING.md) is
+A separate, opt-in [SignPath test-signing workflow](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/docs/SIGNPATH-TEST-SIGNING.md) is
 available for setup review. It uses only the `test-signing` policy and keeps test
 outputs in clearly labelled Actions artifacts. Ordinary releases remain unsigned.
 

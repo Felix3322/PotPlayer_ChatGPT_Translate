@@ -34,7 +34,7 @@ one installation method for each target folder; back up your plugin files and
 settings before changing installer formats. See [MSI details](../installer/msi/README.md).
 
 For Foundation setup review, use the separate manual
-[SignPath test-signing workflow](SIGNPATH-TEST-SIGNING.md). Both workflows reuse
+[SignPath test-signing workflow](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/docs/SIGNPATH-TEST-SIGNING.md). Both workflows reuse
 `build-packages.yml`; test signing never publishes or overwrites release assets.
 
 ## Build locally on Windows
