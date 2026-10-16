@@ -1,0 +1,132 @@
+name: SignPath test signing
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_configuration_slug:
+        description: 'SignPath artifact configuration matching .signpath/test-installers.xml'
+        required: true
+        type: string
+        default: test-installers
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: signpath-test-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Check test-signing setup
+    if: github.repository == 'Felix3322/PotPlayer_ChatGPT_Translate'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require a submitter token and artifact configuration
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          ARTIFACT_CONFIGURATION: ${{ inputs.artifact_configuration_slug }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$SIGNPATH_API_TOKEN" ]]; then
+            echo '::error::Add the SIGNPATH_API_TOKEN Actions secret for a test-signing submitter. Never paste it into a workflow input or log.'
+            exit 1
+          fi
+          if [[ -z "${ARTIFACT_CONFIGURATION//[[:space:]]/}" ]]; then
+            echo '::error::Select the SignPath artifact configuration matching .signpath/test-installers.xml.'
+            exit 1
+          fi
+
+  build:
+    name: Build and test current source
+    needs: preflight
+    uses: ./.github/workflows/build-packages.yml
+    # No secrets are inherited by compilation or package lifecycle tests.
+
+  sign:
+    name: Sign and inspect TEST ONLY artifacts
+    needs: build
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12.10'
+          architecture: x64
+      - name: Download this run's source-built packages
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-assets-${{ github.sha }}
+          path: unsigned-release
+      - name: Verify provenance and stage exactly the requested installers
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          python scripts/package_test_signing.py prepare --unsigned unsigned-release --output signing-input --commit $env:SOURCE_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Unsigned artifact preparation failed.' }
+      - name: Upload unsigned signing input for GitHub origin verification
+        id: unsigned
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: signpath-test-unsigned-${{ github.sha }}
+          path: signing-input/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Submit to the TEST signing policy
+        id: signpath
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: a92b315d-b2eb-4998-ae95-5e23493e69d9
+          project-slug: PotPlayer_Chatgpt_Translate
+          signing-policy-slug: test-signing
+          artifact-configuration-slug: ${{ inputs.artifact_configuration_slug }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 1200
+          output-artifact-directory: signed-installers
+      - name: Verify test-signature integrity and record certificate trust separately
+        shell: pwsh
+        run: ./scripts/verify_test_signatures.ps1 -ArtifactDirectory signed-installers -ReportPath SIGNATURES.json
+      - name: Assemble labelled test output and recalculate all checksums
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          SIGNING_REQUEST_ID: ${{ steps.signpath.outputs.signing-request-id }}
+          SIGNING_REQUEST_URL: ${{ steps.signpath.outputs.signing-request-web-url }}
+          UNSIGNED_ARTIFACT_ID: ${{ steps.unsigned.outputs.artifact-id }}
+        run: |
+          python scripts/package_test_signing.py finish --unsigned unsigned-release --signed signed-installers --report SIGNATURES.json --output test-signed-release --commit $env:SOURCE_SHA --request-id $env:SIGNING_REQUEST_ID --request-url $env:SIGNING_REQUEST_URL --artifact-id $env:UNSIGNED_ARTIFACT_ID
+          if ($LASTEXITCODE -ne 0) { throw 'Test-signing output validation failed.' }
+          @"
+          ## TEST SIGNING ONLY
+          These artifacts are for SignPath setup review, not production distribution.
+          Source commit: $env:SOURCE_SHA
+          Signing request: $env:SIGNING_REQUEST_URL
+          See SIGNATURES.json for integrity results and the separate Windows trust status.
+          A successful test does not establish Foundation approval or public certificate trust.
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+      - name: Upload TEST ONLY signed output
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: TEST-ONLY-signpath-${{ github.sha }}
+          path: test-signed-release/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Upload signature diagnostics on verification failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: signpath-test-diagnostics-${{ github.sha }}
+          path: SIGNATURES.json
+          if-no-files-found: ignore
+          retention-days: 14

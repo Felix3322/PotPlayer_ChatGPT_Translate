@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <!-- upload-artifact v4 wraps these four files in one ZIP. Outer files only. -->
+  <zip-file>
+    <pe-file path="installer-cpp.exe" product-name="PotPlayer ChatGPT Translate">
+      <authenticode-sign />
+    </pe-file>
+    <pe-file path="installer-python.exe" product-name="PotPlayer ChatGPT Translate">
+      <authenticode-sign />
+    </pe-file>
+    <pe-file path="installer-inno.exe" product-name="PotPlayer ChatGPT Translate">
+      <authenticode-sign />
+    </pe-file>
+    <msi-file path="installer.msi">
+      <authenticode-sign />
+    </msi-file>
+  </zip-file>
+</artifact-configuration>

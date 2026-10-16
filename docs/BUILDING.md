@@ -33,6 +33,10 @@ wizards. MSI is an offline payload installer and does not contact an API. Select
 one installation method for each target folder; back up your plugin files and
 settings before changing installer formats. See [MSI details](../installer/msi/README.md).
 
+For Foundation setup review, use the separate manual
+[SignPath test-signing workflow](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/docs/SIGNPATH-TEST-SIGNING.md). Both workflows reuse
+`build-packages.yml`; test signing never publishes or overwrites release assets.
+
 ## Build locally on Windows
 
 Requirements: Windows x64, PowerShell **7**, Python **3.12 x64**, Visual Studio 2022 C++ build tools
