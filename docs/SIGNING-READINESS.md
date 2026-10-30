@@ -1,12 +1,12 @@
 # Code signing policy — preparation status
 
-This project does not currently claim approval by SignPath Foundation or an active
-Foundation release certificate. Test signatures must not be advertised as trusted
+SignPath Foundation confirmed project eligibility on 2026-10-16. The production
+release certificate has not yet been confirmed as issued or active. Test signatures must not be advertised as trusted
 release signatures. See the [Foundation conditions](https://signpath.org/terms).
 
 A separate, opt-in [SignPath test-signing workflow](https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/docs/SIGNPATH-TEST-SIGNING.md) is
 available for setup review. It uses only the `test-signing` policy and keeps test
-outputs in clearly labelled Actions artifacts. Ordinary releases remain unsigned.
+outputs in clearly labelled Actions artifacts. See [production release setup](SIGNPATH-PRODUCTION-RELEASE.md). Production releases remain disabled until explicitly configured after SignPath review.
 
 ## Source and downloads
 
@@ -62,3 +62,4 @@ Back up custom settings before replacing files or changing installer formats.
   provided by SignPath.io, certificate by SignPath Foundation” and link this policy
   from release/download pages. That attribution is a future requirement, not a
   statement that service is currently provided.
+
