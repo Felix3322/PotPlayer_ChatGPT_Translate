@@ -779,6 +779,7 @@ int GetModelMaxTokens(const string &in modelName) {
 string Translate(string Text, string &in SrcLang, string &in DstLang) {
     RefreshConfiguration();
     LoadSubtitleFilters();
+    string originalText = Text;
     Text = FilterSubtitle(Text);
     if (Text.Trim() == "") return "";
 
@@ -796,7 +797,9 @@ string Translate(string Text, string &in SrcLang, string &in DstLang) {
         SrcLang = "";
     }
 
-    GPT_subtitleHistory.insertLast(Text);
+    // Keep the original in memory so current rules can be applied exactly once
+    // when constructing future context, even after the rules file changes.
+    GPT_subtitleHistory.insertLast(originalText);
 
     int maxContextLines = ParseInt(GPT_context_subtitle_count);
     if (maxContextLines < 0)
@@ -809,7 +812,7 @@ string Translate(string Text, string &in SrcLang, string &in DstLang) {
     string currentText = Text.Trim();
     int idx = int(GPT_subtitleHistory.length()) - 2;
     while (idx >= 0 && addedContextLines < maxContextLines) {
-        // Rules may have changed since this entry was recorded.
+        // Never put the raw history entry into a request.
         string subtitle = FilterSubtitle(GPT_subtitleHistory[idx]).Trim();
         if (subtitle == "" || subtitle == currentText) {
             idx--;
