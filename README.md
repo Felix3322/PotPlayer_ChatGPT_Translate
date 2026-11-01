@@ -723,11 +723,15 @@ See [release build and tag CI instructions](docs/BUILDING.md) for native C++, Py
 
 ### Filter subtitles before translation
 
-Open the `.as` script you use in PotPlayer's `Extension/Subtitle/Translate/` directory, and edit the two lists near `Subtitle filter configuration`:
+Create a UTF-8 text file named `ChatGPT-subtitle-filter.txt` beside the `.as` scripts in PotPlayer's `Extension/Subtitle/Translate/` folder. Both variants use the same file, which is separate from the scripts and is not part of the installer payload. Example:
 
-```angelscript
-array<string> GPT_remove_substrings = {"my name is", "advertisement"};
-array<string> GPT_remove_exact_subtitles = {"skip this"};
+```text
+# One rule per line; spaces after = are part of the rule
+contains=my name is
+exact=skip this
+word=cat
 ```
 
-The first list removes every occurrence of each literal substring. The second skips a subtitle only when the entire subtitle, after trimming outer whitespace, equals a rule. Matching is case-sensitive and literal, not regular expressions. Exact rules run first; substring rules then run in list order. If the result is empty or whitespace, no API request is sent. The context variant stores only filtered subtitles in its history. Both lists default to empty. Restart PotPlayer or reload the extension after editing. Configure each script separately, and back up your rules before an update or reinstall overwrites the script.
+`contains=` removes all literal occurrences; `exact=` skips the complete subtitle when it matches after trimming its outer whitespace; `word=` removes a literal only at both text edges or the documented ASCII whitespace/punctuation boundaries. For example, `word=cat` matches `cat!` but not `cats`, `cat_1`, or a string adjoining non-ASCII characters. These are not language-aware word boundaries. Matching is case-sensitive; entries run in exact, word, then contains order, and within each group in file order. Empty values and unknown lines are ignored; CRLF, LF, and a UTF-8 BOM are supported. Spaces after `=` are significant.
+
+Both scripts reload rules on each translation. A missing file disables filtering; an unreadable or over-256-KiB file is ignored. A filtered empty subtitle causes no API request and is not added to context. Back up this personal file before uninstalling or changing installation directories. The script directory can be protected by Windows and require administrator permission to create the file.

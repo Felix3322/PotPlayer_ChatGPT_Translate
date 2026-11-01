@@ -64,6 +64,7 @@ int main(int argc, char **argv) {
     engine->SetMessageCallback(asFUNCTION(Message), nullptr, asCALL_CDECL);
     RegisterStdString(engine);
     RegisterScriptArray(engine, true);
+    Register(engine, engine->RegisterTypedef("uintptr", "uint64"));
     Register(engine, engine->RegisterObjectMethod("string", "string Trim() const", asFUNCTION(Trim), asCALL_CDECL_OBJLAST));
     Register(engine, engine->RegisterObjectMethod("string", "string MakeLower() const", asFUNCTION(Lower), asCALL_CDECL_OBJLAST));
     Register(engine, engine->RegisterObjectMethod("string", "int find(const string &in, int start = 0) const", asFUNCTION(Find), asCALL_CDECL_OBJLAST));

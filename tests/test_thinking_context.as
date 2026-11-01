@@ -10,8 +10,8 @@ void ResetVariant() {
 }
 void TestVariant() {
     Fresh();
-    GPT_remove_substrings.insertLast("private ");
-    GPT_remove_exact_subtitles.insertLast("omit");
+    TestFilterExists = true;
+    TestFilterFile = "contains=private \nexact=omit\n";
     string srcFilter = "en", dstFilter = "fr";
     Check(Translate("omit", srcFilter, dstFilter) == "", "excluded subtitle skipped");
     TestResponses.insertLast("CHAT_OK");

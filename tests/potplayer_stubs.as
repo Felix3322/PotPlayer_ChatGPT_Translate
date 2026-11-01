@@ -7,6 +7,16 @@ array<string> TestHeaders;
 array<string> TestPayloads;
 array<string> TestResponses;
 uint TestResponseIndex = 0;
+string TestFilterFile;
+bool TestFilterExists = false;
+string HostGetScriptFolder() { return "C:\\PotPlayer\\Extension\\Subtitle\\Translate"; }
+uintptr HostFileOpen(const string &in path) {
+    Check(path == HostGetScriptFolder() + "\\ChatGPT-subtitle-filter.txt", "filter file path");
+    return TestFilterExists ? 1 : 0;
+}
+int64 HostFileLength(uintptr file) { return int64(TestFilterFile.length()); }
+string HostFileRead(uintptr file, int len) { return TestFilterFile.substr(0, len); }
+void HostFileClose(uintptr file) {}
 
 string HostLoadString(const string &in key, const string &in fallback) {
     for (uint i = 0; i < TestKeys.length(); i++)
@@ -34,6 +44,7 @@ string HostUrlGetString(const string &in url, const string &in agent,
 }
 void ResetHost() {
     TestKeys.resize(0); TestValues.resize(0);
+    TestFilterFile = ""; TestFilterExists = false;
     ResetRequests();
 }
 void ResetRequests() {

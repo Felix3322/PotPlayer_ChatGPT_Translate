@@ -471,11 +471,15 @@ graph TD
 
 ### 翻译前过滤字幕
 
-用文本编辑器打开 PotPlayer 安装目录下 `Extension/Subtitle/Translate/` 中正在使用的 `.as` 脚本，在文件开头的 `Subtitle filter configuration` 处修改两个列表。例如：
+在 PotPlayer 的 `Extension/Subtitle/Translate/` 目录（即 `.as` 脚本所在目录）创建 UTF-8 文本文件 `ChatGPT-subtitle-filter.txt`。两个版本共用该文件；它独立于脚本，不属于安装程序覆盖的文件。例如：
 
-```angelscript
-array<string> GPT_remove_substrings = {"my name is", "片头广告"};
-array<string> GPT_remove_exact_subtitles = {"广告结束", "skip this"};
+```text
+# 每行一条规则，等号后的空格也属于规则
+contains=my name is
+exact=skip this
+word=cat
 ```
 
-第一个列表会删除字幕中所有匹配的文字；第二个列表仅在整条字幕去掉首尾空白后与规则完全相同时跳过该条字幕。匹配区分大小写，按字面匹配，不是正则表达式。先检查整句规则，再按列表顺序删除部分文字；若删除后只剩空白，插件不发送请求。带上下文版本只将过滤后的字幕加入历史记录。两个列表默认均为空；重启 PotPlayer 或重新加载扩展后生效。两个插件版本分别配置，升级或重新安装覆盖脚本前请备份自己的规则。
+`contains=` 删除所有字面匹配的片段；`exact=` 仅在字幕去掉首尾空白后整条相同时跳过；`word=` 仅在文字两边是文本边缘或 ASCII 空白、标点时删除。例如 `word=cat` 会匹配 `cat!`，不会匹配 `cats`、`cat_1`，也不会匹配与非 ASCII 字符紧邻的情况；这不是按语言分词。所有匹配区分大小写；先执行整句规则，再执行单词规则，最后执行片段规则，每组按文件顺序处理。空值和未知行忽略；支持 CRLF、LF 和 UTF-8 BOM，等号后的空格有意义。
+
+每次翻译都会重新读取规则；文件不存在时不启用过滤，无法读取或超过 256 KiB 时忽略该文件。过滤后只剩空白的字幕不会发给模型，也不会进入上下文。卸载或更换安装目录前请备份个人规则。Windows 可能要求管理员权限才能在脚本目录创建文件。

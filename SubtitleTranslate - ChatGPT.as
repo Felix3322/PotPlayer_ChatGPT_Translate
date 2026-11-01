@@ -61,9 +61,47 @@ string GetPasswordText() {
 }
 
 // Global Variables
-// Subtitle filter configuration. Edit these lists in this script (see README).
+// Shared, optional UTF-8 rules file next to the translator scripts.
 array<string> GPT_remove_substrings = {};
 array<string> GPT_remove_exact_subtitles = {};
+array<string> GPT_remove_whole_words = {};
+
+void LoadSubtitleFilters() {
+    GPT_remove_substrings.resize(0);
+    GPT_remove_exact_subtitles.resize(0);
+    GPT_remove_whole_words.resize(0);
+    string path = HostGetScriptFolder() + "\\ChatGPT-subtitle-filter.txt";
+    uintptr file = HostFileOpen(path);
+    if (file == 0) return;
+    int64 length = HostFileLength(file);
+    if (length < 0 || length > 262144) {
+        HostFileClose(file);
+        HostPrintUTF8("Subtitle filter file exceeds 256 KiB or cannot be read.\n");
+        return;
+    }
+    string data = HostFileRead(file, int(length));
+    HostFileClose(file);
+    if (data.substr(0, 3) == "\xEF\xBB\xBF") data = data.substr(3);
+    int start = 0;
+    while (start < int(data.length())) {
+        int end = data.find("\n", start);
+        if (end < 0) end = int(data.length());
+        string line = data.substr(start, end - start);
+        if (line.length() > 0 && line.substr(line.length() - 1, 1) == "\r")
+            line = line.substr(0, line.length() - 1);
+        if (line.substr(0, 9) == "contains=" && line.length() > 9)
+            GPT_remove_substrings.insertLast(line.substr(9));
+        else if (line.substr(0, 6) == "exact=" && line.length() > 6)
+            GPT_remove_exact_subtitles.insertLast(line.substr(6));
+        else if (line.substr(0, 5) == "word=" && line.length() > 5)
+            GPT_remove_whole_words.insertLast(line.substr(5));
+        start = end + 1;
+    }
+}
+
+bool IsWordBoundary(const string &in ch) {
+    return ch == "" || " \t\r\n.,!?;:()[]{}<>/\\\"'`~@#$%^&*+=|-".find(ch) >= 0;
+}
 
 string FilterSubtitle(string text) {
     for (uint i = 0; i < GPT_remove_exact_subtitles.length(); i++) {
@@ -71,6 +109,23 @@ string FilterSubtitle(string text) {
         if (rule != "" && text.Trim() == rule) return "";
     }
     bool changed = false;
+    for (uint i = 0; i < GPT_remove_whole_words.length(); i++) {
+        string rule = GPT_remove_whole_words[i];
+        if (rule == "") continue;
+        int start = 0;
+        while (start < int(text.length())) {
+            int pos = text.find(rule, start);
+            if (pos < 0) break;
+            int after = pos + int(rule.length());
+            string beforeChar = pos == 0 ? "" : text.substr(pos - 1, 1);
+            string afterChar = after >= int(text.length()) ? "" : text.substr(after, 1);
+            if (IsWordBoundary(beforeChar) && IsWordBoundary(afterChar)) {
+                text = text.substr(0, pos) + text.substr(after);
+                changed = true;
+                start = pos;
+            } else start = pos + 1;
+        }
+    }
     for (uint i = 0; i < GPT_remove_substrings.length(); i++) {
         string rule = GPT_remove_substrings[i];
         if (rule != "" && text.find(rule) != -1) {
@@ -723,6 +778,7 @@ int GetModelMaxTokens(const string &in modelName) {
 // Translation Function
 string Translate(string Text, string &in SrcLang, string &in DstLang) {
     RefreshConfiguration();
+    LoadSubtitleFilters();
     Text = FilterSubtitle(Text);
     if (Text.Trim() == "") return "";
 
