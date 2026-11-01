@@ -61,6 +61,26 @@ string GetPasswordText() {
 }
 
 // Global Variables
+// Subtitle filter configuration. Edit these lists in this script (see README).
+array<string> GPT_remove_substrings = {};
+array<string> GPT_remove_exact_subtitles = {};
+
+string FilterSubtitle(string text) {
+    for (uint i = 0; i < GPT_remove_exact_subtitles.length(); i++) {
+        string rule = GPT_remove_exact_subtitles[i];
+        if (rule != "" && text.Trim() == rule) return "";
+    }
+    bool changed = false;
+    for (uint i = 0; i < GPT_remove_substrings.length(); i++) {
+        string rule = GPT_remove_substrings[i];
+        if (rule != "" && text.find(rule) != -1) {
+            text.replace(rule, "");
+            changed = true;
+        }
+    }
+    return changed ? text.Trim() : text;
+}
+
 // Pre-configured values (auto-filled by installer)
 string GPT_pre_api_key = ""; // will be replaced during installation
 string GPT_pre_selected_model = "gpt-5-nano"; // will be replaced during installation
@@ -703,6 +723,8 @@ int GetModelMaxTokens(const string &in modelName) {
 // Translation Function
 string Translate(string Text, string &in SrcLang, string &in DstLang) {
     RefreshConfiguration();
+    Text = FilterSubtitle(Text);
+    if (Text.Trim() == "") return "";
 
     if (GPT_api_key == "") {
         HostPrintUTF8("API Key not configured. Please enter it in the settings menu.\n");

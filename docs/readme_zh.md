@@ -468,3 +468,14 @@ graph TD
 [issues-url]: https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/issues
 [license-shield]: https://img.shields.io/github/license/Felix3322/PotPlayer_ChatGPT_Translate.svg?style=for-the-badge
 [license-url]: https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/LICENSE
+
+### 翻译前过滤字幕
+
+用文本编辑器打开 PotPlayer 安装目录下 `Extension/Subtitle/Translate/` 中正在使用的 `.as` 脚本，在文件开头的 `Subtitle filter configuration` 处修改两个列表。例如：
+
+```angelscript
+array<string> GPT_remove_substrings = {"my name is", "片头广告"};
+array<string> GPT_remove_exact_subtitles = {"广告结束", "skip this"};
+```
+
+第一个列表会删除字幕中所有匹配的文字；第二个列表仅在整条字幕去掉首尾空白后与规则完全相同时跳过该条字幕。匹配区分大小写，按字面匹配，不是正则表达式。先检查整句规则，再按列表顺序删除部分文字；若删除后只剩空白，插件不发送请求。带上下文版本只将过滤后的字幕加入历史记录。两个列表默认均为空；重启 PotPlayer 或重新加载扩展后生效。两个插件版本分别配置，升级或重新安装覆盖脚本前请备份自己的规则。

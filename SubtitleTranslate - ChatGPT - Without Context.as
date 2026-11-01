@@ -57,6 +57,26 @@ string GetPasswordText() {
 }
 
 // Global Variables
+// Subtitle filter configuration. Edit these lists in this script (see README).
+array<string> GPT_remove_substrings = {};
+array<string> GPT_remove_exact_subtitles = {};
+
+string FilterSubtitle(string text) {
+    for (uint i = 0; i < GPT_remove_exact_subtitles.length(); i++) {
+        string rule = GPT_remove_exact_subtitles[i];
+        if (rule != "" && text.Trim() == rule) return "";
+    }
+    bool changed = false;
+    for (uint i = 0; i < GPT_remove_substrings.length(); i++) {
+        string rule = GPT_remove_substrings[i];
+        if (rule != "" && text.find(rule) != -1) {
+            text.replace(rule, "");
+            changed = true;
+        }
+    }
+    return changed ? text.Trim() : text;
+}
+
 // Pre-configured values (auto-filled by installer)
 // No-context identifiers are prefixed to avoid conflicts with other subtitle translator scripts.
 const string GPT_WC_TRANSLATION_FAILURE_WARNING_PREFIX = "[Translation failed - please share a screenshot with the developer] ";
@@ -638,6 +658,8 @@ bool IsOverlongTranslation(const string &in translation, const string &in origin
 // Translation Function (Without Context Support)
 string Translate(string Text, string &in SrcLang, string &in DstLang) {
     RefreshConfiguration();
+    Text = FilterSubtitle(Text);
+    if (Text.Trim() == "") return "";
 
     if (GPT_api_key == "") {
         HostPrintUTF8("API Key not configured. Please enter it in the settings menu.\n");

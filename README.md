@@ -720,3 +720,14 @@ GitHub:
 ## Building release packages
 
 See [release build and tag CI instructions](docs/BUILDING.md) for native C++, Python, Inno Setup, MSI and manual ZIP packages. Every numeric version tag triggers testing, Windows builds and automatic GitHub Release publication.
+
+### Filter subtitles before translation
+
+Open the `.as` script you use in PotPlayer's `Extension/Subtitle/Translate/` directory, and edit the two lists near `Subtitle filter configuration`:
+
+```angelscript
+array<string> GPT_remove_substrings = {"my name is", "advertisement"};
+array<string> GPT_remove_exact_subtitles = {"skip this"};
+```
+
+The first list removes every occurrence of each literal substring. The second skips a subtitle only when the entire subtitle, after trimming outer whitespace, equals a rule. Matching is case-sensitive and literal, not regular expressions. Exact rules run first; substring rules then run in list order. If the result is empty or whitespace, no API request is sent. The context variant stores only filtered subtitles in its history. Both lists default to empty. Restart PotPlayer or reload the extension after editing. Configure each script separately, and back up your rules before an update or reinstall overwrites the script.

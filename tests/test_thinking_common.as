@@ -140,11 +140,34 @@ void TestCorrectedEndpointAndLogout() {
     RefreshConfiguration();
     AssertMode("auto");
 }
+void TestSubtitleFilter() {
+    Fresh();
+    GPT_remove_substrings.insertLast("my name is");
+    GPT_remove_substrings.insertLast("");
+    GPT_remove_exact_subtitles.insertLast("skip this");
+    GPT_remove_exact_subtitles.insertLast("");
+    Check(FilterSubtitle("my name is li si") == "li si", "remove substring");
+    Check(FilterSubtitle("my name is my name is li si") == "li si", "remove repeated substrings");
+    Check(FilterSubtitle("  skip this  ") == "", "exact subtitle ignores outer whitespace");
+    Check(FilterSubtitle("skip this too") == "skip this too", "exact rule does not remove partial match");
+    Check(FilterSubtitle("My name is li si") == "My name is li si", "matching is case sensitive");
+    string src = "en", dst = "fr";
+    Check(Translate("skip this", src, dst) == "", "exact match returns empty");
+    Check(Translate("my name is", src, dst) == "", "fully removed text returns empty");
+    Check(TestUrls.length() == 0, "empty result does not call API");
+    TestResponses.insertLast("CHAT_OK");
+    Check(Translate("my name is li si", src, dst) == "Translated", "filtered subtitle translates");
+    Check(TestPayloads[0].find("li si") != -1 && TestPayloads[0].find("my name is") == -1, "request contains only filtered text");
+    GPT_remove_substrings.resize(0);
+    GPT_remove_exact_subtitles.resize(0);
+}
+
 void Main() {
     TestNormalizationAndBuilders();
     TestDefaultsAndRefresh();
     TestLoginSuccessAndTranslation();
     TestFailedAndInvalidLogin();
     TestCorrectedEndpointAndLogout();
+    TestSubtitleFilter();
     TestVariant();
 }
