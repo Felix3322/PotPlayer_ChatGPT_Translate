@@ -143,13 +143,14 @@ void TestCorrectedEndpointAndLogout() {
 void TestSubtitleFilter() {
     Fresh();
     TestFilterExists = true;
-    TestFilterFile = "# Rules\r\ncontains=my name is\r\ncontains=\r\nexact=skip this\r\nword=cat\r\nunknown=ignored\r\n";
+    TestFilterFile = "\xEF\xBB\xBFcontains=字幕组\r\n# Rules\r\ncontains=my name is\r\ncontains=\r\nexact=skip this\r\nword=cat\r\nunknown=ignored\r\n";
     LoadSubtitleFilters();
     Check(FilterSubtitle("my name is li si") == "li si", "remove substring");
     Check(FilterSubtitle("my name is my name is li si") == "li si", "remove repeated substrings");
     Check(FilterSubtitle("  skip this  ") == "", "exact subtitle ignores outer whitespace");
     Check(FilterSubtitle("skip this too") == "skip this too", "exact rule does not remove partial match");
     Check(FilterSubtitle("My name is li si") == "My name is li si", "matching is case sensitive");
+    Check(FilterSubtitle("字幕组你好") == "你好", "BOM and UTF-8 text are supported");
     Check(FilterSubtitle("cat, cats and cat!") == ", cats and !", "whole word does not remove part of another word");
     Check(FilterSubtitle("concatenate") == "concatenate", "whole word respects boundaries");
     string src = "en", dst = "fr";
