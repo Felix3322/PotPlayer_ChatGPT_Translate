@@ -468,3 +468,18 @@ graph TD
 [issues-url]: https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/issues
 [license-shield]: https://img.shields.io/github/license/Felix3322/PotPlayer_ChatGPT_Translate.svg?style=for-the-badge
 [license-url]: https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/master/LICENSE
+
+### 翻译前过滤字幕
+
+在 PotPlayer 的 `Extension/Subtitle/Translate/` 目录（即 `.as` 脚本所在目录）创建 UTF-8 文本文件 `ChatGPT-subtitle-filter.txt`。两个版本共用该文件；它独立于脚本，不属于安装程序覆盖的文件。例如：
+
+```text
+# 每行一条规则，等号后的空格也属于规则
+contains=my name is
+exact=skip this
+word=cat
+```
+
+`contains=` 删除所有字面匹配的片段；`exact=` 仅在字幕去掉首尾空白后整条相同时跳过；`word=` 仅在文字两边是文本边缘或 ASCII 空白、标点时删除。例如 `word=cat` 会匹配 `cat!`，不会匹配 `cats`、`cat_1`，也不会匹配与非 ASCII 字符紧邻的情况；这不是按语言分词。所有匹配区分大小写；先执行整句规则，再执行单词规则，最后执行片段规则，每组按文件顺序处理。空值和未知行忽略；支持 CRLF、LF 和 UTF-8 BOM，等号后的空格有意义。
+
+每次翻译都会重新读取规则；文件不存在时不启用过滤，无法读取或超过 256 KiB 时忽略该文件。过滤后只剩空白的字幕不会发给模型，也不会进入上下文。卸载或更换安装目录前请备份个人规则。Windows 可能要求管理员权限才能在脚本目录创建文件。

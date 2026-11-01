@@ -140,11 +140,44 @@ void TestCorrectedEndpointAndLogout() {
     RefreshConfiguration();
     AssertMode("auto");
 }
+void TestSubtitleFilter() {
+    Fresh();
+    TestFilterExists = true;
+    TestFilterFile = "\xEF\xBB\xBFcontains=字幕组\r\n# Rules\r\ncontains=my name is\r\ncontains=\r\nexact=skip this\r\nword=cat\r\nunknown=ignored\r\n";
+    LoadSubtitleFilters();
+    Check(FilterSubtitle("my name is li si") == "li si", "remove substring");
+    Check(FilterSubtitle("my name is my name is li si") == "li si", "remove repeated substrings");
+    Check(FilterSubtitle("  skip this  ") == "", "exact subtitle ignores outer whitespace");
+    Check(FilterSubtitle("skip this too") == "skip this too", "exact rule does not remove partial match");
+    Check(FilterSubtitle("My name is li si") == "My name is li si", "matching is case sensitive");
+    Check(FilterSubtitle("字幕组你好") == "你好", "BOM and UTF-8 text are supported");
+    Check(FilterSubtitle("cat, cats and cat!") == ", cats and !", "whole word does not remove part of another word");
+    Check(FilterSubtitle("concatenate") == "concatenate", "whole word respects boundaries");
+    string src = "en", dst = "fr";
+    Check(Translate("skip this", src, dst) == "", "exact match returns empty");
+    Check(Translate("my name is", src, dst) == "", "fully removed text returns empty");
+    Check(TestUrls.length() == 0, "empty result does not call API");
+    TestResponses.insertLast("CHAT_OK");
+    Check(Translate("my name is li si", src, dst) == "Translated", "filtered subtitle translates");
+    Check(TestPayloads[0].find("li si") != -1 && TestPayloads[0].find("my name is") == -1, "request contains only filtered text");
+    TestFilterFile = "contains=li\n";
+    ResetRequests(); TestResponses.insertLast("CHAT_OK");
+    Translate("li si", src, dst);
+    Check(TestPayloads[0].find("li si") == -1 && TestPayloads[0].find("si") != -1, "changed file reloaded without restart");
+    TestFilterExists = false;
+    LoadSubtitleFilters();
+    Check(FilterSubtitle("my name is li si") == "my name is li si", "missing file clears prior rules");
+    GPT_remove_substrings.resize(0);
+    GPT_remove_exact_subtitles.resize(0);
+    GPT_remove_whole_words.resize(0);
+}
+
 void Main() {
     TestNormalizationAndBuilders();
     TestDefaultsAndRefresh();
     TestLoginSuccessAndTranslation();
     TestFailedAndInvalidLogin();
     TestCorrectedEndpointAndLogout();
+    TestSubtitleFilter();
     TestVariant();
 }

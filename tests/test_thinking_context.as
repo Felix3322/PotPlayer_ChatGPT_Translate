@@ -9,6 +9,26 @@ void ResetVariant() {
     GPT_context_cache_disable_key = "";
 }
 void TestVariant() {
+    Fresh();
+    TestFilterExists = true;
+    TestFilterFile = "contains=private \nexact=omit\n";
+    string srcFilter = "en", dstFilter = "fr";
+    Check(Translate("omit", srcFilter, dstFilter) == "", "excluded subtitle skipped");
+    TestResponses.insertLast("CHAT_OK");
+    Translate("private first", srcFilter, dstFilter);
+    TestResponses.insertLast("CHAT_OK");
+    Translate("second", srcFilter, dstFilter);
+    Check(TestPayloads[1].find("first") != -1 && TestPayloads[1].find("private") == -1 && TestPayloads[1].find("omit") == -1, "history contains only filtered text");
+    Fresh();
+    TestFilterExists = true;
+    TestFilterFile = "exact=hello\ncontains=prefix \n";
+    TestResponses.insertLast("CHAT_OK");
+    Translate("prefix hello", srcFilter, dstFilter);
+    TestResponses.insertLast("CHAT_OK");
+    Translate("next", srcFilter, dstFilter);
+    Check(TestPayloads[1].find("hello") != -1 && TestPayloads[1].find("prefix") == -1, "non-idempotent rules apply once to history");
+    GPT_remove_substrings.resize(0);
+    GPT_remove_exact_subtitles.resize(0);
     // Check coexistence with all existing cache metadata and JSON escaping.
     array<string> modes = {"auto", "disabled", "enabled"};
     for (uint i = 0; i < modes.length(); i++) {

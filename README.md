@@ -720,3 +720,18 @@ GitHub:
 ## Building release packages
 
 See [release build and tag CI instructions](docs/BUILDING.md) for native C++, Python, Inno Setup, MSI and manual ZIP packages. Every numeric version tag triggers testing, Windows builds and automatic GitHub Release publication.
+
+### Filter subtitles before translation
+
+Create a UTF-8 text file named `ChatGPT-subtitle-filter.txt` beside the `.as` scripts in PotPlayer's `Extension/Subtitle/Translate/` folder. Both variants use the same file, which is separate from the scripts and is not part of the installer payload. Example:
+
+```text
+# One rule per line; spaces after = are part of the rule
+contains=my name is
+exact=skip this
+word=cat
+```
+
+`contains=` removes all literal occurrences; `exact=` skips the complete subtitle when it matches after trimming its outer whitespace; `word=` removes a literal only at both text edges or the documented ASCII whitespace/punctuation boundaries. For example, `word=cat` matches `cat!` but not `cats`, `cat_1`, or a string adjoining non-ASCII characters. These are not language-aware word boundaries. Matching is case-sensitive; entries run in exact, word, then contains order, and within each group in file order. Empty values and unknown lines are ignored; CRLF, LF, and a UTF-8 BOM are supported. Spaces after `=` are significant.
+
+Both scripts reload rules on each translation. A missing file disables filtering; an unreadable or over-256-KiB file is ignored. A filtered empty subtitle causes no API request and is not added to context. Back up this personal file before uninstalling or changing installation directories. The script directory can be protected by Windows and require administrator permission to create the file.
