@@ -809,7 +809,8 @@ string Translate(string Text, string &in SrcLang, string &in DstLang) {
     string currentText = Text.Trim();
     int idx = int(GPT_subtitleHistory.length()) - 2;
     while (idx >= 0 && addedContextLines < maxContextLines) {
-        string subtitle = GPT_subtitleHistory[idx].Trim();
+        // Rules may have changed since this entry was recorded.
+        string subtitle = FilterSubtitle(GPT_subtitleHistory[idx]).Trim();
         if (subtitle == "" || subtitle == currentText) {
             idx--;
             continue;
