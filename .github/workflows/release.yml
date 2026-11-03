@@ -19,10 +19,87 @@ jobs:
     name: Build and test current source
     uses: ./.github/workflows/build-packages.yml
 
-  release:
-    name: Publish tagged GitHub release
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+  sign:
+    name: Authorize and sign native release
+    if: github.repository == 'Felix3322/PotPlayer_ChatGPT_Translate' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && startsWith(github.ref, 'refs/tags/')
     needs: build
+    runs-on: windows-2022
+    environment: signpath-production
+    timeout-minutes: 270
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12.10'
+      - name: Check production configuration and source ancestry
+        shell: pwsh
+        env:
+          TOKEN: ${{ secrets.SIGNPATH_PRODUCTION_API_TOKEN }}
+          ENABLED: ${{ vars.SIGNPATH_PRODUCTION_ENABLED }}
+          CERTIFICATE_SHA256: ${{ vars.SIGNPATH_PRODUCTION_CERT_SHA256 }}
+        run: |
+          if ($env:ENABLED -cne 'true' -or [string]::IsNullOrWhiteSpace($env:TOKEN) -or $env:CERTIFICATE_SHA256 -cnotmatch '^[0-9A-F]{64}$') { throw 'Production signing is not configured and explicitly enabled in the protected environment.' }
+          git merge-base --is-ancestor $env:GITHUB_SHA origin/master
+          if ($LASTEXITCODE -ne 0) { throw 'Release commit must be on master history.' }
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-assets-${{ github.sha }}
+          path: unsigned-release
+      - name: Check provenance and stage native installer
+        shell: pwsh
+        run: |
+          python scripts/package_test_signing.py prepare --unsigned unsigned-release --output signing-input --commit $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Invalid unsigned inputs.' }
+      - name: Upload native installer for origin verification
+        id: unsigned
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: signing-input/installer-cpp.exe
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - name: Request production signing and wait for SignPath approval
+        id: signpath
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_PRODUCTION_API_TOKEN }}
+          organization-id: a92b315d-b2eb-4998-ae95-5e23493e69d9
+          project-slug: PotPlayer_Chatgpt_Translate
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 14400
+          output-artifact-directory: signed-installers
+          skip-decompress: true
+      - name: Verify signature cryptography and Windows trust
+        shell: pwsh
+        run: ./scripts/verify_test_signatures.ps1 -ArtifactDirectory signed-installers -ReportPath SIGNATURES.json -NativeOnly
+      - name: Assemble signed release and recalculate checksums
+        shell: pwsh
+        env:
+          CERTIFICATE_SHA256: ${{ vars.SIGNPATH_PRODUCTION_CERT_SHA256 }}
+          REQUEST_ID: ${{ steps.signpath.outputs.signing-request-id }}
+          REQUEST_URL: ${{ steps.signpath.outputs.signing-request-web-url }}
+          ARTIFACT_ID: ${{ steps.unsigned.outputs.artifact-id }}
+        run: |
+          python scripts/package_production_signing.py --unsigned unsigned-release --signed signed-installers --report SIGNATURES.json --output signed-release --commit $env:GITHUB_SHA --request-id $env:REQUEST_ID --request-url $env:REQUEST_URL --artifact-id $env:ARTIFACT_ID --certificate-sha256 $env:CERTIFICATE_SHA256
+          if ($LASTEXITCODE -ne 0) { throw 'Signed output verification failed.' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: production-release-${{ github.sha }}
+          path: signed-release/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish verified signed release
+    needs: sign
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -30,12 +107,12 @@ jobs:
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: release-assets-${{ github.sha }}
+          name: production-release-${{ github.sha }}
           path: dist
       - name: Check transferred assets
         working-directory: dist
         run: sha256sum --check SHA256SUMS
-      - name: Publish complete release without overwriting existing assets
+      - name: Publish without overwriting an existing release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -45,34 +122,17 @@ jobs:
         run: |
           set -euo pipefail
           tag_commit=$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq .sha)
-          if [[ "$tag_commit" != "$SOURCE_SHA" ]]; then
-            echo 'The tag moved after this build started. Refusing to publish packages from a different revision.' >&2
-            exit 1
-          fi
-          python3 -c 'import json, os; info = json.load(open("dist/BUILD-INFO.json")); assert info["source_commit"] == os.environ["SOURCE_SHA"], "Artifact source commit mismatch"; assert not info["source_dirty"], "Refusing to publish a dirty-source build"'
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo 'A release already exists for this tag. Nothing was overwritten. Inspect the existing release before retrying.' >&2
-            exit 1
-          fi
+          if [[ "$tag_commit" != "$SOURCE_SHA" ]]; then echo 'Tag moved; refusing to publish.' >&2; exit 1; fi
+          python3 -c 'import json, os; i=json.load(open("dist/BUILD-INFO.json")); assert i["source_commit"] == os.environ["SOURCE_SHA"] and i["source_dirty"] is False'
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then echo 'Release exists; inspect it before recovery.' >&2; exit 1; fi
           cat > notes.md <<EOF
-          Built automatically from commit $SOURCE_SHA.
+          Built from commit $SOURCE_SHA. The native installer (installer.exe and installer-cpp.exe are identical) is signed. The manual ZIP is unsigned and contains scripts and documentation. Python, Inno and MSI installers are not included in this release.
 
-          - installer.exe / installer-cpp.exe: native C++ installer (identical files)
-          - installer-python.exe: Python/PyInstaller installer
-          - installer-inno.exe: Inno Setup installer
-          - installer.msi: offline Windows Installer package; configure the API in PotPlayer afterward
-          - *-manual.zip: scripts, icons, license and manual-install instructions
-          - BUILD-INFO.json and SHA256SUMS: source revision, staged script hashes and asset checksums
+          Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
 
-          Code signing policy: https://github.com/Felix3322/PotPlayer_ChatGPT_Translate/blob/$SOURCE_SHA/docs/SIGNING-READINESS.md
-
-          Choose one installation method for a given folder. Back up existing plugin files before changing installer formats. Installers are unsigned. MSI uses a numeric MAJOR.MINOR.PATCH version.
+          BUILD-INFO.json, SIGNING-INFO.json, SIGNATURES.json and SHA256SUMS document the build and signed artifacts.
           EOF
-          # Stage assets privately first. A failed upload leaves only a draft.
           release_flags=()
-          if [[ "${RELEASE_TAG%%+*}" == *-* ]]; then
-            release_flags+=(--prerelease --latest=false)
-          fi
-          gh release create "$RELEASE_TAG" dist/* --verify-tag --draft \
-            --title "PotPlayer ChatGPT Translate $RELEASE_TAG" --notes-file notes.md --generate-notes "${release_flags[@]}"
+          if [[ "$RELEASE_TAG" == *-* ]]; then release_flags+=(--prerelease --latest=false); fi
+          gh release create "$RELEASE_TAG" dist/* --verify-tag --draft --title "PotPlayer ChatGPT Translate $RELEASE_TAG" --notes-file notes.md --generate-notes "${release_flags[@]}"
           gh release edit "$RELEASE_TAG" --draft=false "${release_flags[@]}"
